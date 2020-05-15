@@ -974,7 +974,7 @@ mono_method_full_name (MonoMethod *method, gboolean signature)
 {
 	char *res;
 	MONO_ENTER_GC_UNSAFE;
-	res = mono_method_get_name_full (method, signature, FALSE, MONO_TYPE_NAME_FORMAT_IL);
+	res = mono_method_get_name_full (method, signature, /*FALSE*/ TRUE, MONO_TYPE_NAME_FORMAT_IL);
 	MONO_EXIT_GC_UNSAFE;
 	return res;
 }

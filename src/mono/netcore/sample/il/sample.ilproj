@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.IL">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <OutputPath>bin</OutputPath>
+    <TargetFramework>$(NetCoreAppCurrent)</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Compile Include="sample.il" / -->
+    <!-- Compile Include="covariant-unit-test.il" /-->
+    <!-- Compile Include="AttributeTesting.il" /-->
+    <!-- Compile Include="UnitTest_GVM.il" / -->
+    <!-- Compile Include="OverrideMoreDerivedReturn.il" / -->
+    <Compile Include="UnitTest.il" />
+    
+  </ItemGroup>
+</Project>
