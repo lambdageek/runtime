@@ -6,12 +6,17 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Compile Include="sample.il" / -->
+    <!-- early hacking -->
     <!-- Compile Include="covariant-unit-test.il" /-->
-    <!-- Compile Include="AttributeTesting.il" /-->
-    <!-- Compile Include="UnitTest_GVM.il" / -->
-    <!-- Compile Include="OverrideMoreDerivedReturn.il" / -->
-    <Compile Include="UnitTest.il" />
+
+    <!-- expected to pass -->
+    <!-- Compile Include="AttributeTesting.il" / -->
+    <!-- Compile Include="UnitTest.il" / -->
+    <Compile Include="OverrideMoreDerivedReturn.il" />
     
+    <!-- has negative tests -->
+    
+    <!-- Compile Include="UnitTest_GVM.il" /-->
+
   </ItemGroup>
 </Project>
