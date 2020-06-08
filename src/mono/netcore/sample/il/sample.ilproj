@@ -12,8 +12,9 @@
     <!-- expected to pass -->
     <!-- Compile Include="AttributeTesting.il" / -->
     <!-- Compile Include="UnitTest.il" / -->
-    <Compile Include="OverrideMoreDerivedReturn.il" />
-    
+    <!-- Compile Include="OverrideMoreDerivedReturn.il" /-->
+    <Compile Include="UnitTestDelegates.il" />
+
     <!-- has negative tests -->
     
     <!-- Compile Include="UnitTest_GVM.il" /-->
