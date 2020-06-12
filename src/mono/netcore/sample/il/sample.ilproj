@@ -5,6 +5,30 @@
     <TargetFramework>$(NetCoreAppCurrent)</TargetFramework>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
+  <!-- <ItemGroup> -->
+  <!--   <ProjectReference Include="Modules\A.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\B.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\C.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\Dictionary.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\GenBaseType.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\GenDerive1.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\GenDerive2.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\GenDerive3.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\GenRetType.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\GenTestType.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\GenToNonGen1.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\GenToNonGen2.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\GenToNonGen3.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\NonGenericDerived1.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\NonGenericDerived2.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\NonGenericDerived3.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\NonGenericDerived4.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\NonGenThroughGen1.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\NonGenThroughGen2.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\NonGenThroughGen3.ilproj"/> -->
+  <!--   <ProjectReference Include="Modules\NonGenThroughGen4.ilproj"/> -->
+  <!-- </ItemGroup> -->
+
   <ItemGroup>
     <!-- early hacking -->
     <!-- Compile Include="covariant-unit-test.il" /-->
@@ -12,12 +36,21 @@
     <!-- expected to pass -->
     <!-- Compile Include="AttributeTesting.il" / -->
     <!-- Compile Include="UnitTest.il" / -->
-    <!-- Compile Include="OverrideMoreDerivedReturn.il" /-->
-    <Compile Include="UnitTestDelegates.il" />
-
+    <!-- <Compile Include="OverrideMoreDerivedReturn.il" /> -->
+    <!-- Compile Include="UnitTestDelegates.il" /-->
+    <!-- <Compile Include="UnitTestMultiModule.il" /> -->
+    <!-- <Compile Include="CompatibleWithTest.il" /> -->
     <!-- has negative tests -->
-    
-    <!-- Compile Include="UnitTest_GVM.il" /-->
+
+    <!-- wip -->
+    <!-- need to check every signature up the type hierarchy that was in one of the slots with the most derived impl -->
+    <!-- <Compile Include="UnitTest_GVM.il" /> -->
+
+    <!-- Structs -->
+    <!-- <Compile Include="IncompatibleOverride.il" /> -->
+
+    <!-- Interfaces -->
+    <!-- there are examples Interfaces/UnitTest.il that use variance.  need to check that they work. -->
 
   </ItemGroup>
 </Project>
