@@ -52,5 +52,9 @@
     <!-- Interfaces -->
     <!-- there are examples Interfaces/UnitTest.il that use variance.  need to check that they work. -->
 
+    <!-- ReturnTypeValidation -->
+    <Compile Include="ImplicitOverrideSameSigAsDecl.il" />
+    <!-- <Compile Include="OverrideSameSigAsDecl.il" /> -->
+
   </ItemGroup>
 </Project>
