@@ -39,7 +39,7 @@
     <!-- <Compile Include="OverrideMoreDerivedReturn.il" /> -->
     <!-- Compile Include="UnitTestDelegates.il" /-->
     <!-- <Compile Include="UnitTestMultiModule.il" /> -->
-    <!-- <Compile Include="CompatibleWithTest.il" /> -->
+    <Compile Include="CompatibleWithTest.il" />
     <!-- has negative tests -->
 
     <!-- wip -->
@@ -53,7 +53,7 @@
     <!-- there are examples Interfaces/UnitTest.il that use variance.  need to check that they work. -->
 
     <!-- ReturnTypeValidation -->
-    <Compile Include="ImplicitOverrideSameSigAsDecl.il" />
+    <!-- <Compile Include="ImplicitOverrideSameSigAsDecl.il" /> -->
     <!-- <Compile Include="OverrideSameSigAsDecl.il" /> -->
 
   </ItemGroup>
