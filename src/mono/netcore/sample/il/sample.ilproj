@@ -34,12 +34,12 @@
     <!-- Compile Include="covariant-unit-test.il" /-->
 
     <!-- expected to pass -->
-    <!-- Compile Include="AttributeTesting.il" / -->
+    <!-- <Compile Include="AttributeTesting.il" /> -->
     <!-- Compile Include="UnitTest.il" / -->
     <!-- <Compile Include="OverrideMoreDerivedReturn.il" /> -->
     <!-- Compile Include="UnitTestDelegates.il" /-->
     <!-- <Compile Include="UnitTestMultiModule.il" /> -->
-    <Compile Include="CompatibleWithTest.il" />
+    <!-- <Compile Include="CompatibleWithTest.il" /> -->
     <!-- has negative tests -->
 
     <!-- wip -->
@@ -51,10 +51,17 @@
 
     <!-- Interfaces -->
     <!-- there are examples Interfaces/UnitTest.il that use variance.  need to check that they work. -->
+    <!-- <Compile Include="InterfacesUnitTest.il" /> -->
+    <Compile Include="UnsupportedScenario1.il" />
+    <!-- <Compile Include="UnsupportedScenario2.il" /> -->
+    <!-- <Compile Include="UnsupportedScenario3.il" /> -->
+
 
     <!-- ReturnTypeValidation -->
     <!-- <Compile Include="ImplicitOverrideSameSigAsDecl.il" /> -->
     <!-- <Compile Include="OverrideSameSigAsDecl.il" /> -->
+
+    
 
   </ItemGroup>
 </Project>
