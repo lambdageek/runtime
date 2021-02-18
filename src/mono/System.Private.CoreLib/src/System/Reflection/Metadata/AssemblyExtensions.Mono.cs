@@ -5,37 +5,16 @@ using System.Runtime.CompilerServices;
 
 namespace System.Reflection.Metadata
 {
-    public static class AssemblyExtensions
+    public static partial class AssemblyExtensions
     {
         [CLSCompliant(false)]
         public static unsafe bool TryGetRawMetadata(this Assembly assembly, out byte* blob, out int length) => throw new NotImplementedException();
 
-        /// <summary>
-        /// Updates the specified assembly using the provided metadata, IL and PDB deltas.
-        /// </summary>
-        /// <remarks>
-        /// Currently executing methods will continue to use the existing IL. New executions of modified methods will
-        /// use the new IL. Different runtimes may have different limitations on what kinds of changes are supported,
-        /// and runtimes make no guarantees as to the state of the assembly and process if the delta includes
-        /// unsupported changes.
-        /// </remarks>
-        /// <param name="assembly">The assembly to update.</param>
-        /// <param name="metadataDelta">The metadata changes to be applied.</param>
-        /// <param name="ilDelta">The IL changes to be applied.</param>
-        /// <param name="pdbDelta">The PDB changes to be applied.</param>
-        /// <exception cref="ArgumentNullException">The assembly argument is null.</exception>
-        /// <exception cref="NotSupportedException">The update could not be applied.</exception>
-        public static void ApplyUpdate(Assembly assembly, ReadOnlySpan<byte> metadataDelta, ReadOnlySpan<byte> ilDelta, ReadOnlySpan<byte> pdbDelta = default)
+        internal static void ApplyUpdateInternal(RuntimeAssembly runtimeAssembly, ReadOnlySpan<byte> metadataDelta, ReadOnlySpan<byte> ilDelta, ReadOnlySpan<byte> pdbDelta = default)
         {
 #if !FEATURE_METADATA_UPDATE
             throw new NotSupportedException ("Method body replacement not supported in this runtime");
 #else
-            if (assembly is not RuntimeAssembly runtimeAssembly)
-            {
-                if (assembly is null) throw new ArgumentNullException(nameof(assembly));
-                throw new ArgumentException(SR.Argument_MustBeRuntimeAssembly);
-            }
-
             // System.Private.CoreLib is not editable
             if (runtimeAssembly == typeof(AssemblyExtensions).Assembly)
                 throw new InvalidOperationException ("The assembly can not be edited or changed.");

@@ -568,6 +568,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\MemberFilter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\MemberInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\MemberTypes.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\Metadata\AssemblyExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\MethodAttributes.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\MethodBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\MethodBody.cs" />
