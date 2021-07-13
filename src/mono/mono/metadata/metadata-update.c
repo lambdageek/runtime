@@ -135,3 +135,15 @@ mono_metadata_update_has_modified_rows (const MonoTableInfo *table)
 {
 	return mono_component_hot_reload ()->has_modified_rows (table);
 }
+
+/**
+ * mono_metadata_table_num_rows:
+ *
+ * Returns the number of rows from the specified table that the current thread can see.
+ * If there's a EnC metadata update, this number may change.
+ */
+int
+mono_metadata_table_num_rows_slow (MonoImage *base_image, int table_index)
+{
+	return mono_component_hot_reload()->table_num_rows_slow (base_image, table_index);
+}
