@@ -63,8 +63,6 @@ namespace HelloWorld
 	    var st = new State ();
 	    var t = new Thread (MutatorThread);
 	    t.Start (st);
-	    var t2 = new Thread (BusyThread) { IsBackground = true };
-	    t2.Start (st);
 
 	    string res = st.ConsumerStep ();
 	    if (res != "OLD STRING")
@@ -75,9 +73,6 @@ namespace HelloWorld
 	    res = st.ConsumerStep ();
 	    if (res != "NEW STRING")
 		return 2;
-
-	    st.WaitForBusy ();
-	    Console.WriteLine ("BusyChanged: {0}", st.BusyChanged);
 
 	    return 0;
 	}
@@ -114,4 +109,3 @@ namespace HelloWorld
 
     }
 }
-
