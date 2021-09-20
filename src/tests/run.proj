@@ -841,7 +841,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
   <Target Name="CreateTestOverlay">
     <MSBuild Projects="$(MSBuildProjectFile)"
              Targets="CopyDependencyToCoreRoot"
-             Properties="Language=C#;OutputRid=$(OutputRid);RuntimeIdentifier=$(OutputRid)" />
+             Properties="Language=C#;OutputRid=$(OutputRid);RuntimeIdentifier=$(OutputRid);RuntimeFlavor=$(RuntimeFlavor)" />
   </Target>
 
   <Target Name="Build">

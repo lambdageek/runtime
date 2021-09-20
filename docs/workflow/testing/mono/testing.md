@@ -7,10 +7,10 @@ Before running tests, [build Mono](../../building/mono/README.md) using the desi
 
 To build the runtime tests for Mono JIT or interpreter:
 
-1. Build CoreCLR - the `clr.native` subset is enough but you can build the whole thing, optionally.  From the `$(REPO_ROOT)`:
+1. Build CoreCLR - the `clr.hosts` subset is enough but you can build the whole thing, optionally.  From the `$(REPO_ROOT)`:
 
 ```
-./build.sh clr.native -c <release|debug>
+./build.sh clr.hosts -c <release|debug>
 ```
 
 2. Build the tests (in `$(REPO_ROOT)/src/tests`)

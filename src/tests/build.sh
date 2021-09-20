@@ -96,7 +96,7 @@ generate_layout()
     MSBUILDDEBUGPATH="${__MsbuildDebugLogsDir}"
     export MSBUILDDEBUGPATH
 
-    __BuildProperties="-p:TargetOS=${__TargetOS} -p:TargetArchitecture=${__BuildArch} -p:Configuration=${__BuildType}"
+    __BuildProperties="-p:TargetOS=${__TargetOS} -p:TargetArchitecture=${__BuildArch} -p:Configuration=${__BuildType} -p:RuntimeFlavor=${__RuntimeFlavor}"
 
     # =========================================================================================
     # ===
@@ -127,7 +127,7 @@ generate_layout()
 
     chmod +x "$__BinDir"/corerun
 
-    build_MSBuild_projects "Tests_Overlay_Managed" "$__RepoRootDir/src/tests/run.proj" "Creating test overlay" "/t:CreateTestOverlay"
+    build_MSBuild_projects "Tests_Overlay_Managed" "$__RepoRootDir/src/tests/run.proj" "Creating test overlay" "/t:CreateTestOverlay" "/p:RuntimeFlavor=$__RuntimeFlavor"
 
     # Precompile framework assemblies with crossgen if required
     if [[ "$__DoCrossgen2" != 0 ]]; then
