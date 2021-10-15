@@ -6,6 +6,30 @@ using System.Runtime.CompilerServices;
 
 namespace FullyGeneralGenericsTest
 {
+
+    class C 
+    { 
+
+	public static void Caller () {
+	    C.M1(C.M0); 
+	}
+
+	public static void M0(ref int x) 
+	{ 
+	    x++; 
+	} 
+ 
+
+	public static void M1(Action<ref int> action) 
+	{ 
+	    int i = 0; 
+	    Console.Write(i); 
+	    action(ref i); 
+	    Console.Write(i); 
+	} 
+	
+    }
+
     [GenericParameterSupportsAnyTypeAttribute(0)]
     struct GenericType<T>
     {
@@ -47,6 +71,9 @@ namespace FullyGeneralGenericsTest
     {
         static int Main()
         {
+	    Console.WriteLine ("Calling delegate of ref caller");
+	    C.Caller();
+
             Type fullyGenericType;
 
             Console.WriteLine("Test Can Create Generic of Int");
