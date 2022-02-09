@@ -489,7 +489,9 @@ mini_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSign
 
 	need_unbox_trampoline = method->klass == mono_defaults.object_class || mono_class_is_interface (method->klass);
 
-	call = mini_emit_call_args (cfg, sig, args, FALSE, virtual_, tailcall, rgctx_arg ? TRUE : FALSE, need_unbox_trampoline, method);
+	gboolean is_sv = m_method_is_static (method) && m_method_is_virtual (method);
+
+	call = mini_emit_call_args (cfg, sig, args, FALSE, virtual_ || is_sv, tailcall, rgctx_arg ? TRUE : FALSE, need_unbox_trampoline, method);
 	call->method = method;
 	call->inst.flags |= MONO_INST_HAS_METHOD;
 	call->inst.inst_left = this_ins;
@@ -498,11 +500,14 @@ mini_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSign
 	// Fixing it generates incorrect code. CEE_JMP needs attention.
 	call->tailcall = tailcall;
 
-	if (virtual_) {
+	if (virtual_ || is_sv) {
 		int vtable_reg, slot_reg, this_reg;
 		int offset;
 
-		this_reg = this_ins->dreg;
+		if (!is_sv)
+			this_reg = this_ins->dreg;
+		else
+			this_reg = 0;
 
 		if (!cfg->llvm_only && (m_class_get_parent (method->klass) == mono_defaults.multicastdelegate_class) && !strcmp (method->name, "Invoke")) {
 			MonoInst *dummy_use;
@@ -547,9 +552,11 @@ mini_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSign
 			virtual_ = FALSE;
 		}
 
-		if (!virtual_) {
-			if (!method->string_ctor)
+		if (!virtual_ && !is_sv) {
+			if (!method->string_ctor) {
+				fprintf (stderr, "emitting check_this for call\n");
 				MONO_EMIT_NEW_CHECK_THIS (cfg, this_reg);
+			}
 		}
 
 		if (!virtual_ && cfg->llvm_only && cfg->interp && !tailcall && can_enter_interp (cfg, method, FALSE)) {
@@ -560,11 +567,18 @@ mini_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSign
 
 			/* This call might need to enter the interpreter so make it indirect */
 			return mini_emit_llvmonly_calli (cfg, sig, args, ftndesc);
-		} else if (!virtual_) {
+		} else if (!virtual_ && !is_sv) {
 			call->inst.opcode = callvirt_to_call (call->inst.opcode);
 		} else {
-			vtable_reg = alloc_preg (cfg);
-			MONO_EMIT_NEW_LOAD_MEMBASE_FAULT (cfg, vtable_reg, this_reg, MONO_STRUCT_OFFSET (MonoObject, vtable));
+			if (!is_sv) {
+				vtable_reg = alloc_preg (cfg);
+				MONO_EMIT_NEW_LOAD_MEMBASE_FAULT (cfg, vtable_reg, this_reg, MONO_STRUCT_OFFSET (MonoObject, vtable));
+			} else {
+				/* FIXME: is method->klass right?  we want the constrained class, not the actual one? */
+				MonoInst *vtable_inst =  mini_emit_get_rgctx_klass (cfg, /*context_used*/MONO_GENERIC_CONTEXT_USED_METHOD,
+									method->klass, MONO_RGCTX_INFO_VTABLE);
+				vtable_reg = vtable_inst->dreg;
+			}
 			if (mono_class_is_interface (method->klass)) {
 				guint32 imt_slot = mono_method_get_imt_slot (method);
 				emit_imt_argument (cfg, call, call->method, imt_arg);

@@ -3739,7 +3739,11 @@ handle_constrained_gsharedvt_call (MonoCompile *cfg, MonoMethod *cmethod, MonoMe
 		 * plus some simple interface calls enough to support AsyncTaskMethodBuilder.
 		 */
 
-		args [0] = sp [0];
+		if (!m_method_is_static (cmethod))
+			args [0] = sp [0];
+		else
+			EMIT_NEW_PCONST (cfg, args[0], NULL);
+
 		args [1] = emit_get_rgctx_method (cfg, mono_method_check_context_used (cmethod), cmethod, MONO_RGCTX_INFO_METHOD);
 		args [2] = mini_emit_get_rgctx_klass (cfg, mono_class_check_context_used (constrained_class), constrained_class, MONO_RGCTX_INFO_KLASS);
 
@@ -5726,7 +5730,9 @@ handle_constrained_call (MonoCompile *cfg, MonoMethod *cmethod, MonoMethodSignat
 	}
 
 	if (m_method_is_static (cmethod)) {
-		/* Call to an abstract static method */
+		if (m_method_is_virtual (cmethod))
+		    *ref_virtual = TRUE;
+		/* Call to an abstract static method */ 
 		return NULL;
 	} if (constrained_partial_call) {
 		gboolean need_box = TRUE;
@@ -7328,6 +7334,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 #ifdef TARGET_WASM
 			gboolean needs_stack_walk; needs_stack_walk = FALSE;
 #endif
+			gboolean is_static_virtual; is_static_virtual = FALSE;
 
 			// Variables shared by CEE_CALLI and CEE_CALL/CEE_CALLVIRT.
 			common_call = FALSE;
@@ -7357,9 +7364,14 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 
 			MonoMethod *cil_method; cil_method = cmethod;
 			if (constrained_class) {
-				if (m_method_is_static (cil_method) && mini_class_check_context_used (cfg, constrained_class))
+				if (m_method_is_static (cil_method) && mini_class_check_context_used (cfg, constrained_class)) {
+					fprintf (stderr, "constrained . call static virtual\n");
+					is_static_virtual = TRUE;
+					if (cfg->gsharedvt)
+						fprintf (stderr, "in gsharedvt for static virtual\n");
 					// FIXME:
-					GENERIC_SHARING_FAILURE (CEE_CALL);
+				//	GENERIC_SHARING_FAILURE (CEE_CALL);
+				}
 
 				cmethod = get_constrained_method (cfg, image, token, cil_method, constrained_class, generic_context);
 				CHECK_CFG_ERROR;
@@ -7400,7 +7412,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 #endif
 			}
 
-			if (!virtual_ && (cmethod->flags & METHOD_ATTRIBUTE_ABSTRACT)) {
+			if (!virtual_ && (cmethod->flags & METHOD_ATTRIBUTE_ABSTRACT) && (!m_method_is_static (cmethod))) {
 				if (!mono_class_is_interface (method->klass))
 					emit_bad_image_failure (cfg, method, cil_method);
 				else
@@ -7682,8 +7694,10 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 				vtable_arg = emit_get_rgctx_method (cfg, context_used, cmethod, MONO_RGCTX_INFO_METHOD_RGCTX);
 
 				if ((!(cmethod->flags & METHOD_ATTRIBUTE_VIRTUAL) || MONO_METHOD_IS_FINAL (cmethod))) {
-					if (virtual_)
+					if (virtual_) {
+						fprintf (stderr, "setting check_this = TRUE\n");
 						check_this = TRUE;
+					}
 					virtual_ = FALSE;
 				}
 			}
@@ -8099,7 +8113,7 @@ call_end:
 			g_assert (!called_is_supported_tailcall || tailcall_extra_arg == (vtable_arg || imt_arg || will_have_imt_arg || mono_class_is_interface (cmethod->klass)));
 
 			if (common_call) // FIXME goto call_end && !common_call often skips tailcall processing.
-				ins = mini_emit_method_call_full (cfg, cmethod, fsig, tailcall, sp, virtual_ ? sp [0] : NULL,
+				ins = mini_emit_method_call_full (cfg, cmethod, fsig, tailcall, sp, virtual_ && !is_static_virtual ? sp [0] : NULL,
 												  imt_arg, vtable_arg);
 
 			/*
