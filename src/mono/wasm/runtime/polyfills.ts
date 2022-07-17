@@ -1,23 +1,13 @@
 import MonoWasmThreads from "consts:monoWasmThreads";
-import { ENVIRONMENT_IS_ESM, ENVIRONMENT_IS_NODE, Module, requirePromise } from "./imports";
+import { ENVIRONMENT_IS_ESM, ENVIRONMENT_IS_NODE, INTERNAL, Module, requirePromise } from "./imports";
 
 let node_fs: any | undefined = undefined;
 let node_url: any | undefined = undefined;
 
-export async function init_polyfills(): Promise<void> {
+export function init_polyfills(): void {
     // performance.now() is used by emscripten and doesn't work in JSC
     if (typeof globalThis.performance === "undefined") {
-        if (ENVIRONMENT_IS_NODE && ENVIRONMENT_IS_ESM) {
-            const node_require = await requirePromise;
-            const { performance } = node_require("perf_hooks");
-            globalThis.performance = performance;
-        } else {
-            globalThis.performance = {
-                now: function () {
-                    return Date.now();
-                }
-            } as any;
-        }
+        globalThis.performance = dummyPerformance as any;
     }
     if (typeof globalThis.URL === "undefined") {
         globalThis.URL = class URL {
@@ -93,6 +83,23 @@ export async function init_polyfills(): Promise<void> {
         };
     }
 }
+
+export async function init_polyfills_async(): Promise<void> {
+    if (ENVIRONMENT_IS_NODE && ENVIRONMENT_IS_ESM) {
+        // wait for locateFile setup on NodeJs
+        INTERNAL.require = await requirePromise;
+        if (globalThis.performance === dummyPerformance) {
+            const { performance } = INTERNAL.require("perf_hooks");
+            globalThis.performance = performance;
+        }
+    }
+}
+
+const dummyPerformance = {
+    now: function () {
+        return Date.now();
+    }
+};
 
 export async function fetch_like(url: string): Promise<Response> {
     try {

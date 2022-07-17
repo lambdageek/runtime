@@ -37,7 +37,9 @@ import {
     mono_load_runtime_and_bcl_args, mono_wasm_load_config,
     mono_wasm_setenv, mono_wasm_set_runtime_options,
     mono_wasm_load_data_archive, mono_wasm_asm_loaded,
-    configure_emscripten_startup
+    configure_emscripten_startup,
+    mono_wasm_load_runtime,
+    setMainScriptUrlOrBlob,
 } from "./startup";
 import { mono_set_timeout, schedule_background_exec } from "./scheduling";
 import { mono_wasm_load_icu_data, mono_wasm_get_icudt_name } from "./icu";
@@ -100,9 +102,8 @@ const MONO = {
     mono_run_main_and_exit,
     mono_wasm_get_assembly_exports,
 
-    // for Blazor's future!
     mono_wasm_add_assembly: cwraps.mono_wasm_add_assembly,
-    mono_wasm_load_runtime: cwraps.mono_wasm_load_runtime,
+    mono_wasm_load_runtime,
 
     config: <MonoConfig | MonoConfigError>runtimeHelpers.config,
     loaded_files: <string[]>[],
@@ -297,7 +298,7 @@ function initializeImportsAndExports(
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         module.mono_bind_static_method = (fqn: string, signature: string/*ArgsMarshalString*/): Function => {
-            console.warn("Module.mono_bind_static_method is obsolete, please use BINDING.bind_static_method instead");
+            console.warn("MONO_WASM: Module.mono_bind_static_method is obsolete, please use BINDING.bind_static_method instead");
             return mono_bind_static_method(fqn, signature);
         };
 
@@ -312,7 +313,7 @@ function initializeImportsAndExports(
                     if (is_nullish(value)) {
                         const stack = (new Error()).stack;
                         const nextLine = stack ? stack.substr(stack.indexOf("\n", 8) + 1) : "";
-                        console.warn(`global ${name} is obsolete, please use Module.${name} instead ${nextLine}`);
+                        console.warn(`MONO_WASM: global ${name} is obsolete, please use Module.${name} instead ${nextLine}`);
                         value = provider();
                     }
                     return value;
@@ -344,6 +345,7 @@ function initializeImportsAndExports(
     list.registerRuntime(exportedAPI);
 
     configure_emscripten_startup(module, exportedAPI);
+    setMainScriptUrlOrBlob(module);
 
     if (ENVIRONMENT_IS_WORKER) {
         // HACK: Emscripten's dotnet.worker.js expects the exports of dotnet.js module to be Module object

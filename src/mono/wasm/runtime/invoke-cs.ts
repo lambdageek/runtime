@@ -33,8 +33,8 @@ export function mono_wasm_bind_cs_function(fully_qualified_name: MonoStringRef, 
         const js_fqn = conv_string_root(fqn_root)!;
         mono_assert(js_fqn, "fully_qualified_name must be string");
 
-        if (runtimeHelpers.config.diagnostic_tracing) {
-            console.trace(`MONO_WASM: Binding [JSExport] ${js_fqn}`);
+        if (runtimeHelpers.diagnostic_tracing) {
+            console.debug(`MONO_WASM: Binding [JSExport] ${js_fqn}`);
         }
 
         const { assembly, namespace, classname, methodname } = parseFQN(js_fqn);
