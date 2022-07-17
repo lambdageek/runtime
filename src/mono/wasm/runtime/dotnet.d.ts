@@ -183,8 +183,8 @@ interface AssetEntry extends ResourceRequest {
 }
 declare type AssetBehaviours = "resource" | "assembly" | "pdb" | "heap" | "icu" | "vfs" | "dotnetwasm";
 declare type GlobalizationMode = "icu" | // load ICU globalization data from any runtime assets with behavior "icu".
-    "invariant" | //  operate in invariant globalization mode.
-    "auto";
+"invariant" | //  operate in invariant globalization mode.
+"auto";
 declare type AOTProfilerOptions = {
     write_at?: string;
     send_to?: string;

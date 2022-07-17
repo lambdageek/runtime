@@ -446,7 +446,7 @@ async function _instantiate_wasm_module(): Promise<void> {
         mono_assert(pendingAsset && pendingAsset.pending, () => `Can't load ${assetToLoad.name}`);
 
         const response = await pendingAsset.pending.response;
-        const contentType = response.headers.get("Content-Type");
+        const contentType = response.headers ? response.headers.get("Content-Type") : undefined;
         let compiledInstance: WebAssembly.Instance;
         if (typeof WebAssembly.instantiateStreaming === "function" && contentType === "application/wasm") {
             if (runtimeHelpers.diagnostic_tracing) console.debug("MONO_WASM: mono_wasm_after_user_runtime_initialized streaming");
@@ -557,17 +557,8 @@ function _apply_configuration_from_args() {
         mono_wasm_setenv("TZ", "UTC");
     }
 
-    config.environment_variables = config.environment_variables || {};
-    config.assets = config.assets || [];
-    config.runtime_options = config.runtime_options || [];
-    config.globalization_mode = config.globalization_mode || "auto";
-
-    const envars = (config.environment_variables || {});
-    if (typeof (envars) !== "object")
-        throw new Error("Expected config.environment_variables to be unset or a dictionary-style object");
-
-    for (const k in envars) {
-        const v = envars![k];
+    for (const k in config.environment_variables) {
+        const v = config.environment_variables![k];
         if (typeof (v) === "string")
             mono_wasm_setenv(k, v);
         else
@@ -582,10 +573,6 @@ function _apply_configuration_from_args() {
 
     if (config.coverage_profiler_options)
         mono_wasm_init_coverage_profiler(config.coverage_profiler_options);
-
-    if (config.enable_debugging)
-        config.debug_level = config.enable_debugging;
-
 }
 
 
@@ -717,7 +704,10 @@ async function start_asset_download(asset: AssetEntry): Promise<AssetEntry | und
             url: "undefined://" + asset.name,
             name: asset.name,
             response: Promise.resolve({
-                arrayBuffer: () => buffer
+                arrayBuffer: () => buffer,
+                headers: {
+                    get: () => undefined,
+                }
             }) as any
         };
         return Promise.resolve(asset);
@@ -929,6 +919,17 @@ export async function mono_wasm_load_config(configFilePath: string): Promise<voi
         // merge
         configData.assets = [...(config.assets || []), ...(configData.assets || [])];
         config = runtimeHelpers.config = Module.config = Object.assign(Module.config as any, configData);
+
+        // normalize
+        config.environment_variables = config.environment_variables || {};
+        config.assets = config.assets || [];
+        config.runtime_options = config.runtime_options || [];
+        config.globalization_mode = config.globalization_mode || "auto";
+        if (config.enable_debugging)
+            config.debug_level = config.enable_debugging;
+
+        if (typeof (config.environment_variables) !== "object")
+            throw new Error("Expected config.environment_variables to be unset or a dictionary-style object");
 
         if (Module.onConfigLoaded) {
             try {
