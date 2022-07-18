@@ -61,6 +61,9 @@ if (ENVIRONMENT_IS_NODE) {
         return getBinary(wasmBinaryFile);
     }
 }
+if (ENVIRONMENT_IS_SHELL) {
+    scriptDirectory = import.meta.url.slice(0, import.meta.url.lastIndexOf('/')) + '/';
+}
 let __dotnet_exportedAPI = __dotnet_runtime.__initializeImportsAndExports(
     { isESM:true, isGlobal:false, isNode:ENVIRONMENT_IS_NODE, isWorker:ENVIRONMENT_IS_WORKER, isShell:ENVIRONMENT_IS_SHELL, isWeb:ENVIRONMENT_IS_WEB, isPThread:${isPThread}, locateFile, quit_, ExitStatus, requirePromise:__dotnet_replacements.requirePromise },
     { mono:MONO, binding:BINDING, internal:INTERNAL, module:Module, marshaled_exports: EXPORTS, marshaled_imports: IMPORTS },
