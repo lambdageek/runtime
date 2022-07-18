@@ -201,6 +201,7 @@ function _walk_exports_to_set_function(assembly: string, namespace: string, clas
 }
 
 export async function mono_wasm_get_assembly_exports(assembly: string): Promise<any> {
+    mono_assert(runtimeHelpers.mono_wasm_bindings_is_ready, "Expected binding to be initialized later during startup sequence.");
     const asm = assembly_load(assembly);
     if (!asm)
         throw new Error("Could not find assembly: " + assembly);

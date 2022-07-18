@@ -90,20 +90,16 @@ export type MonoConfigError = {
 }
 
 export interface ResourceRequest {
-    name: string;
-    behavior: AssetBehaviours;
+    name: string, // the name of the asset, including extension.
+    behavior: AssetBehaviours, // determines how the asset will be handled once loaded
     resolvedUrl?: string;
     hash?: string;
 }
 
 // Types of assets that can be in the mono-config.js/mono-config.json file (taken from /src/tasks/WasmAppBuilder/WasmAppBuilder.cs)
 export interface AssetEntry extends ResourceRequest {
-    name: string, // the name of the asset, including extension.
-    behavior: AssetBehaviours, // determines how the asset will be handled once loaded
     virtual_path?: string, // if specified, overrides the path of the asset in the virtual filesystem and similar data structures once loaded.
     culture?: string,
-    resolvedUrl?: string,
-    hash?: string,
     load_remote?: boolean, // if true, an attempt will be made to load the asset from each location in @args.remote_sources.
     is_optional?: boolean // if true, any failure to load this asset will be ignored.
     buffer?: ArrayBuffer // if provided, we don't have to fetch it
