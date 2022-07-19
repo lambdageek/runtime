@@ -137,8 +137,8 @@ function preInit(isCustomStartup: boolean, userPreInit: (() => void)[], userPreI
         abort_startup(err, true);
         throw err;
     }
-    // this will start immediately but return on first await. 
-    // It will block our `preRun` by afterPreInit promise 
+    // this will start immediately but return on first await.
+    // It will block our `preRun` by afterPreInit promise
     // It will block emscripten `userOnRuntimeInitialized` by pending addRunDependency("mono_pre_init")
     (async () => {
         try {
@@ -227,7 +227,7 @@ async function onRuntimeInitializedAsync(isCustomStartup: boolean, userOnRuntime
             _print_error("MONO_WASM: user callback onRuntimeInitializedAsync() failed", err);
             throw err;
         }
-        // finish 
+        // finish
         await mono_wasm_after_user_runtime_initialized();
     } catch (err) {
         _print_error("MONO_WASM: onRuntimeInitializedAsync() failed", err);
@@ -315,7 +315,7 @@ async function mono_wasm_pre_init_full(): Promise<void> {
 }
 
 // runs just in non-blazor
-function mono_wasm_before_user_runtime_initialized(): void {
+async function mono_wasm_before_user_runtime_initialized(): Promise<void> {
     if (runtimeHelpers.diagnostic_tracing) console.debug("MONO_WASM: mono_wasm_before_user_runtime_initialized");
 
     if (!Module.config || Module.config.isError) {
@@ -370,7 +370,7 @@ async function mono_wasm_after_user_runtime_initialized(): Promise<void> {
 
         if (runtimeHelpers.diagnostic_tracing) console.debug("MONO_WASM: Initializing mono runtime");
 
-        // these are second calls in case of non-blazor. 
+        // these are second calls in case of non-blazor.
         if (!runtimeHelpers.mono_wasm_load_runtime_done) mono_wasm_load_runtime("unused", runtimeHelpers.enable_debugging);
         if (!runtimeHelpers.mono_wasm_bindings_is_ready) bindings_init();
         if (!runtimeHelpers.mono_wasm_runtime_is_ready) mono_wasm_runtime_ready();
