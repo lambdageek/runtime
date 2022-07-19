@@ -62,6 +62,7 @@ const inlineAssert = [
         pattern: /^\s*mono_assert/gm,
         failure: "previous regexp didn't inline all mono_assert statements"
     }];
+//TODO es6/cjs as const
 const outputCodePlugins = [regexReplace(inlineAssert), consts({ productVersion, configuration, monoWasmThreads }), typescript()];
 
 const iffeConfig = {

@@ -3,7 +3,7 @@
 
 import MonoWasmThreads from "consts:monoWasmThreads";
 import { mono_assert, CharPtrNull, DotnetModule, MonoConfig, wasm_type_symbol, MonoObject, MonoConfigError, LoadingResource, AssetEntry, ResourceRequest } from "./types";
-import { ENVIRONMENT_IS_NODE, ENVIRONMENT_IS_PTHREAD, ENVIRONMENT_IS_SHELL, INTERNAL, locateFile, Module, MONO, runtimeHelpers } from "./imports";
+import { ENVIRONMENT_IS_NODE, ENVIRONMENT_IS_PTHREAD, ENVIRONMENT_IS_SHELL, INTERNAL, Module, MONO, runtimeHelpers } from "./imports";
 import cwraps from "./cwraps";
 import { mono_wasm_raise_debug_event, mono_wasm_runtime_ready } from "./debug";
 import { mono_wasm_globalization_init, mono_wasm_load_icu_data } from "./icu";
@@ -19,7 +19,7 @@ import { initialize_marshalers_to_cs } from "./marshal-to-cs";
 import { initialize_marshalers_to_js } from "./marshal-to-js";
 import { mono_wasm_new_root } from "./roots";
 import { init_crypto } from "./crypto-worker";
-import { init_polyfills, init_polyfills_async } from "./polyfills";
+import { init_polyfills_async } from "./polyfills";
 import * as pthreads_worker from "./pthreads/worker";
 import { createPromiseController } from "./promise-controller";
 import { string_decoder } from "./strings";
@@ -281,7 +281,7 @@ function mono_wasm_pre_init_essential(): void {
     Module.addRunDependency("mono_wasm_pre_init_essential");
     if (runtimeHelpers.diagnostic_tracing) console.debug("MONO_WASM: mono_wasm_pre_init_essential");
 
-    init_polyfills();
+    // init_polyfills() is already called from export.ts
     init_crypto();
 
     Module.removeRunDependency("mono_wasm_pre_init_essential");
@@ -424,6 +424,7 @@ export function mono_wasm_set_runtime_options(options: string[]): void {
 async function _instantiate_wasm_module(): Promise<void> {
     // this is called so early that even Module exports like addRunDependency don't exist yet
     try {
+        await runtimeHelpers.scriptDirectoryPromise; // make sure we know where we are
         if (!config.assets && Module.configSrc) {
             // when we are starting with mono-config,json, it could have dotnet.wasm location in it, we have to wait for it
             await mono_wasm_load_config(Module.configSrc);
@@ -754,7 +755,7 @@ async function start_asset_download(asset: AssetEntry): Promise<AssetEntry | und
             } else {
                 attemptUrl = sourcePrefix + asset.name;
             }
-            attemptUrl = locateFile(attemptUrl);
+            attemptUrl = runtimeHelpers.locateFile(attemptUrl);
         }
         else {
             attemptUrl = asset.resolvedUrl;
@@ -914,7 +915,8 @@ export async function mono_wasm_load_config(configFilePath: string): Promise<voi
     }
     if (runtimeHelpers.diagnostic_tracing) console.debug("MONO_WASM: mono_wasm_load_config");
     try {
-        const configResponse = await runtimeHelpers.fetch(configFilePath);
+        const resolveSrc = runtimeHelpers.locateFile(configFilePath);
+        const configResponse = await runtimeHelpers.fetch(resolveSrc);
         const configData: MonoConfig = (await configResponse.json()) || {};
         // merge
         configData.assets = [...(config.assets || []), ...(configData.assets || [])];
@@ -999,31 +1001,6 @@ async function mono_wasm_pthread_worker_init(): Promise<void> {
     pthreads_worker.currentWorkerThreadEvents.addEventListener(pthreads_worker.dotnetPthreadCreated, (ev) => {
         console.debug("MONO_WASM: thread created", ev.pthread_ptr);
     });
-}
-
-export function setMainScriptUrlOrBlob(module: DotnetModule): void {
-    // HACK: Emscripten expects us to provide it a fully qualified path where it can find
-    //  our main script so that it can be loaded from inside of workers, because workers
-    //  have their paths relative to the root instead of relative to our location
-    // In the browser we can create a hyperlink and set its href to a relative URL,
-    //  and the browser will convert it into an absolute one for us
-    if (
-        (typeof (globalThis.document) === "object") &&
-        (typeof (globalThis.document.createElement) === "function")
-    ) {
-        // blazor injects a module preload link element for dotnet.[version].[sha].js
-        const blazorDotNetJS = Array.from(document.head.getElementsByTagName("link")).filter(elt => elt.rel !== undefined && elt.rel == "modulepreload" && elt.href !== undefined && elt.href.indexOf("dotnet") != -1 && elt.href.indexOf(".js") != -1);
-        if (blazorDotNetJS.length == 1) {
-            const hr = blazorDotNetJS[0].href;
-            console.log("MONO_WASM: determined url of dotnet main script to be " + hr);
-            (<any>module)["mainScriptUrlOrBlob"] = hr;
-        } else {
-            const temp = globalThis.document.createElement("a");
-            temp.href = "dotnet.js";
-            console.log("MONO_WASM: determined url of dotnet main script to be " + temp.href);
-            (<any>module)["mainScriptUrlOrBlob"] = temp.href;
-        }
-    }
 }
 
 /**

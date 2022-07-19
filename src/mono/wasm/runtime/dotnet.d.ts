@@ -170,12 +170,8 @@ interface ResourceRequest {
     hash?: string;
 }
 interface AssetEntry extends ResourceRequest {
-    name: string;
-    behavior: AssetBehaviours;
     virtual_path?: string;
     culture?: string;
-    resolvedUrl?: string;
-    hash?: string;
     load_remote?: boolean;
     is_optional?: boolean;
     buffer?: ArrayBuffer;

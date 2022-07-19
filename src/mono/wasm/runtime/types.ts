@@ -148,6 +148,12 @@ export type RuntimeHelpers = {
     enable_debugging: number;
     wait_for_debugger?: number;
     fetch: (url: string, init?: RequestInit) => Promise<Response>;
+    scriptDirectoryPromise: Promise<string>
+    scriptDirectory?: string
+    requirePromise: Promise<Function>
+    ExitStatus: ExitStatusError;
+    quit: Function,
+    locateFile: (path: string, prefix?: string) => string,
 }
 
 export const wasm_type_symbol = Symbol.for("wasm type");
@@ -285,4 +291,43 @@ export const enum MarshalError {
 //  https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing_operator)
 export function is_nullish<T>(value: T | null | undefined): value is null | undefined {
     return (value === undefined) || (value === null);
+}
+
+export type EarlyImports = {
+    isESM: boolean,
+    isGlobal: boolean,
+    isNode: boolean,
+    isWorker: boolean,
+    isShell: boolean,
+    isWeb: boolean,
+    isPThread: boolean,
+    locateFile: (path: string, prefix?: string) => string,
+    quit_: Function,
+    ExitStatus: ExitStatusError,
+    requirePromise: Promise<Function>
+};
+export type EarlyExports = {
+    mono: any,
+    binding: any,
+    internal: any,
+    module: any,
+    marshaled_exports: any,
+    marshaled_imports: any
+};
+export type EarlyReplacements = {
+    fetch: any,
+    require: any,
+    requirePromise: Promise<Function>,
+    noExitRuntime: boolean,
+    updateGlobalBufferAndViews: Function,
+    pthreadReplacements: PThreadReplacements | undefined | null
+    scriptDirectoryPromise: Promise<string>
+    scriptUrl: string
+}
+export interface ExitStatusError {
+    new(status: number): any;
+}
+export type PThreadReplacements = {
+    loadWasmModuleToWorker: Function,
+    threadInitTLS: Function
 }

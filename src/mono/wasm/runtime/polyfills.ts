@@ -1,5 +1,5 @@
 import MonoWasmThreads from "consts:monoWasmThreads";
-import { ENVIRONMENT_IS_ESM, ENVIRONMENT_IS_NODE, INTERNAL, Module, requirePromise } from "./imports";
+import { ENVIRONMENT_IS_ESM, ENVIRONMENT_IS_NODE, INTERNAL, Module, runtimeHelpers } from "./imports";
 
 let node_fs: any | undefined = undefined;
 let node_url: any | undefined = undefined;
@@ -87,7 +87,7 @@ export function init_polyfills(): void {
 export async function init_polyfills_async(): Promise<void> {
     if (ENVIRONMENT_IS_NODE && ENVIRONMENT_IS_ESM) {
         // wait for locateFile setup on NodeJs
-        INTERNAL.require = await requirePromise;
+        INTERNAL.require = await runtimeHelpers.requirePromise;
         if (globalThis.performance === dummyPerformance) {
             const { performance } = INTERNAL.require("perf_hooks");
             globalThis.performance = performance;
@@ -105,7 +105,7 @@ export async function fetch_like(url: string): Promise<Response> {
     try {
         if (ENVIRONMENT_IS_NODE) {
             if (!node_fs) {
-                const node_require = await requirePromise;
+                const node_require = await runtimeHelpers.requirePromise;
                 node_url = node_require("url");
                 node_fs = node_require("fs");
             }
@@ -145,12 +145,4 @@ export async function fetch_like(url: string): Promise<Response> {
         };
     }
     throw new Error("No fetch implementation available");
-}
-
-export function readAsync_like(url: string, onload: Function, onerror: Function): void {
-    fetch_like(url).then((res: Response) => {
-        onload(res.arrayBuffer());
-    }).catch((err) => {
-        onerror(err);
-    });
 }
