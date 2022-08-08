@@ -92,7 +92,7 @@ namespace System
         public static bool FileCreateCaseSensitive => IsCaseSensitiveOS;
 #endif
 
-        public static bool IsThreadingSupported => !IsBrowser;
+        public static bool IsThreadingSupported => !IsBrowser || IsEnvironmentVariableTrue("IsWasmThreadingSupported");
         public static bool IsBinaryFormatterSupported => IsNotMobile && !IsNativeAot;
         public static bool IsSymLinkSupported => !IsiOS && !IstvOS;
         public static bool IsStartingProcessesSupported => !IsiOS && !IstvOS;
