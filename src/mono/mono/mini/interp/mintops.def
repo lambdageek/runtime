@@ -786,7 +786,7 @@ OPDEF(MINT_INTRINS_64ORDINAL_IGNORE_CASE_ASCII, "intrins_64ordinal_ignore_case_a
 OPDEF(MINT_INTRINS_U32_TO_DECSTR, "intrins_u32_to_decstr", 5, 1, 1, MintOpTwoShorts)
 OPDEF(MINT_INTRINS_WIDEN_ASCII_TO_UTF16, "intrins_widen_ascii_to_utf16", 5, 1, 3, MintOpNoArgs)
 
-#ifdef ENABLE_DELIMIT_CONTROL
+#ifdef ENABLE_CONTROL_DELIMIT
 OPDEF(MINT_DELIMIT_CALL_DELEGATE, "delimit.call.delegate", 5, 1, 1, MintOpTwoShorts)
 OPDEF(MINT_DELIMIT_RESTORE, "delimit.restore", 1, 0, 0, MintOpNoArgs)
 OPDEF(MINT_DELIMIT_TRANSFER_CONTROL, "delimit.transfer_control", 3, 1, 1, MintOpNoArgs)

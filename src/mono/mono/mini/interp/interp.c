@@ -381,7 +381,64 @@ interp_frame_destroy (InterpFrame *frame)
                 frame = next;
         } while (frame != NULL);
 }
-#endif
+#endif /* INTERP_FRAME_HEAP_ALLOC */
+
+#ifdef ENABLE_CONTROL_DELIMIT
+static void
+set_context (ThreadContext *context);
+
+static ThreadContext *
+alloc_context (void);
+static void
+destroy_context (ThreadContext *context);
+
+static ThreadContext *
+interp_set_delimited_continuation_delimiter (ThreadContext *context, InterpFrame *frame)
+{
+        /*
+         * Start a new ThreadContext that will be used to limit how much of the control stack Control.Delimited.TransferControl will cut out.
+         * The MINT_DELIMIT_RESTORE instruction will reset the thread context back to the original one when the delimited delegate returns.
+         */
+
+        /* validate the old context */
+        g_assert (!context->has_resume_state);
+        g_assert (!context->handler_frame);
+        g_assert (!context->handler_ip);
+
+        ThreadContext *new_context = alloc_context ();
+        /* FIXME: EMIT_CONTROL_DELIMIT - need to update the GC scanning to look at the old context */
+        new_context->delimited_thread_context = context;
+
+        mono_compiler_barrier ();
+        set_context (new_context);
+
+        return new_context;
+}
+
+static ThreadContext *
+interp_restore_delimited_continuation_delimiter (ThreadContext *context, InterpFrame *frame)
+{
+        g_assert (context->delimited_thread_context != NULL);
+
+        /* validate the current context */
+        g_assert (!context->has_resume_state);
+        g_assert (!context->handler_frame);
+        g_assert (!context->handler_ip);
+        
+        ThreadContext *restored_context = context->delimited_thread_context;
+        context->delimited_thread_context = NULL;
+
+        mono_compiler_barrier ();
+
+        set_context (restored_context);
+
+	frame_data_allocator_free (&context->data_stack);
+        g_free (context);
+
+        return restored_context;
+}
+
+#endif /* ENABLE_CONTROL_DELIMIT */
 
 static void
 clear_resume_state (ThreadContext *context)
@@ -421,23 +478,41 @@ set_context (ThreadContext *context)
 }
 
 static ThreadContext *
+alloc_context (void)
+{
+        ThreadContext *context = g_new0 (ThreadContext, 1);
+        context->stack_start = (guchar*)mono_valloc (0, INTERP_STACK_SIZE, MONO_MMAP_READ | MONO_MMAP_WRITE, MONO_MEM_ACCOUNT_INTERP_STACK);
+        context->stack_end = context->stack_start + INTERP_STACK_SIZE - INTERP_REDZONE_SIZE;
+        context->stack_real_end = context->stack_start + INTERP_STACK_SIZE;
+        context->stack_pointer = context->stack_start;
+
+        frame_data_allocator_init (&context->data_stack, 8192);
+
+        return context;
+}
+
+static ThreadContext *
 get_context (void)
 {
 	ThreadContext *context = (ThreadContext *) mono_native_tls_get_value (thread_context_id);
 	if (context == NULL) {
-                /* HACK: ENABLE_CONTROL_DELIMIT : need to make a new context (really just the stack) when there's a delimiter */
-		context = g_new0 (ThreadContext, 1);
-		context->stack_start = (guchar*)mono_valloc (0, INTERP_STACK_SIZE, MONO_MMAP_READ | MONO_MMAP_WRITE, MONO_MEM_ACCOUNT_INTERP_STACK);
-		context->stack_end = context->stack_start + INTERP_STACK_SIZE - INTERP_REDZONE_SIZE;
-		context->stack_real_end = context->stack_start + INTERP_STACK_SIZE;
-		context->stack_pointer = context->stack_start;
-
-		frame_data_allocator_init (&context->data_stack, 8192);
+                context = alloc_context ();
 		/* Make sure all data is initialized before publishing the context */
 		mono_compiler_barrier ();
 		set_context (context);
 	}
 	return context;
+}
+
+static void
+destroy_context (ThreadContext *context)
+{
+	mono_vfree (context->stack_start, INTERP_STACK_SIZE, MONO_MEM_ACCOUNT_INTERP_STACK);
+	/* Prevent interp_mark_stack from trying to scan the data_stack, before freeing it */
+	context->stack_start = NULL;
+	mono_compiler_barrier ();
+	frame_data_allocator_free (&context->data_stack);
+	g_free (context);
 }
 
 static void
@@ -453,12 +528,15 @@ interp_free_context (gpointer ctx)
 		set_context (NULL);
 	}
 
-	mono_vfree (context->stack_start, INTERP_STACK_SIZE, MONO_MEM_ACCOUNT_INTERP_STACK);
-	/* Prevent interp_mark_stack from trying to scan the data_stack, before freeing it */
-	context->stack_start = NULL;
-	mono_compiler_barrier ();
-	frame_data_allocator_free (&context->data_stack);
-	g_free (context);
+        do {
+#ifdef ENABEL_CONTROL_DELIMIT
+                ThreadContext *delimited_context = context->delimited_thread_context;
+#else
+                ThreadContext *delimited_context = NULL;
+#endif
+                destroy_context (context);
+                context = delimited_context;
+        } while (context != NULL);
 }
 
 /* Continue unwinding if there is an exception that needs to be handled in an AOTed frame above us */
@@ -3808,8 +3886,10 @@ main_loop:
 			ip = frame->imethod->code;
 			MINT_IN_BREAK;
 		}
+#ifdef ENABLE_CONTROL_DELIMIT
+                MINT_IN_CASE(MINT_DELIMIT_CALL_DELEGATE)
+#endif
 		MINT_IN_CASE(MINT_CALL_DELEGATE) {
-                        // FIXME: ENABLE_CONTROL_DELIMIT - add a case for Control.Delimit.Delimit calling a delegate here, and do our special setup before the call
 			// FIXME We don't need to encode the whole signature, just param_count
 			MonoMethodSignature *csignature = (MonoMethodSignature*)frame->imethod->data_items [ip [4]];
 			int param_count = csignature->param_count;
@@ -3818,6 +3898,9 @@ main_loop:
 			MonoDelegate *del = LOCAL_VAR (call_args_offset, MonoDelegate*);
 			gboolean is_multicast = del->method == NULL;
 			InterpMethod *del_imethod = (InterpMethod*)del->interp_invoke_impl;
+#ifdef ENABLE_CONTROL_DELIMIT
+                        gboolean is_delimit_control = *ip == MINT_DELIMIT_CALL_DELEGATE;
+#endif
 
 			if (!del_imethod) {
 				// FIXME push/pop LMF
@@ -3875,6 +3958,14 @@ main_loop:
 				}
 			}
 			ip += 5;
+
+#ifdef ENABLE_CONTROL_DELIMIT
+                        if (G_UNLIKELY (is_delimit_control)) {
+                                SAVE_INTERP_STATE (frame);
+                                /* swap out to a new ThreadContext so that we can capture the continuation below this call */
+                                context = interp_set_delimited_continuation_delimiter (context, frame);
+                        }
+#endif
 
 			goto call;
 		}
@@ -7353,6 +7444,20 @@ MINT_IN_CASE(MINT_BRTRUE_I8_SP) ZEROP_SP(gint64, !=); MINT_IN_BREAK;
 			ip += 3;
 			MINT_IN_BREAK;
 		}
+#ifdef ENABLE_CONTROL_DELIMIT
+                MINT_IN_CASE(MINT_DELIMIT_RESTORE) {
+                        g_warning ("in delimit.restore\n");
+                        MINT_IN_BREAK;
+                }
+                MINT_IN_CASE(MINT_DELIMIT_TRANSFER_CONTROL) {
+                        g_error ("implement delimit.transfer_control");
+                        MINT_IN_BREAK;
+                }
+                MINT_IN_CASE(MINT_DELIMIT_RESUME_CONTROL) {
+                        g_error ("implement delimit.resume_control");
+                        MINT_IN_BREAK;
+                }
+#endif /* ENABLE_CONTROL_DELIMIT */
 
 #if !USE_COMPUTED_GOTO
 		default:
