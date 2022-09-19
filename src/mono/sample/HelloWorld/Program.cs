@@ -9,11 +9,17 @@ namespace HelloWorld
     {
         private static void Main(string[] args)
         {
-            bool isMono = typeof(object).Assembly.GetType("Mono.RuntimeStructs") != null;
-            Console.WriteLine($"Hello World {(isMono ? "from Mono!" : "from CoreCLR!")}");
-            Console.WriteLine(typeof(object).Assembly.FullName);
-            Console.WriteLine(System.Reflection.Assembly.GetEntryAssembly ());
-            Console.WriteLine(System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+
+	    int r = Mono.Control.Delimited.Delimit (static () => {
+		Console.WriteLine ("before capturing continuation");
+		int resumedAns = Mono.Control.Delimited.TransferControl<int,int> (static (cont) => {
+		    Console.WriteLine ("In the control handler");
+		    Mono.Control.Delimited.ResumeContinuation (cont, 42);
+		});
+		Console.WriteLine ("After continuation resumed with value {0}", resumedAns);
+		return resumedAns + 1;
+	    });
+	    Console.WriteLine ("After delimiter, answer {0}", r);
         }
     }
 }

@@ -916,5 +916,7 @@ if (ENABLE_MSCORDBI AND NOT TARGET_ARCH STREQUAL "arm64"  AND NOT CMAKE_CROSSCOM
   add_subdirectory(dlls/dbgshim)
 endif()
 
+set(ENABLE_CONTROL_DELIMIT 1)
+
 configure_file(cmake/config.h.in config.h)
 configure_file(cmake/eglib-config.h.cmake.in mono/eglib/eglib-config.h)

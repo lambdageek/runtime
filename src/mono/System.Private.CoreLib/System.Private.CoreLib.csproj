@@ -142,6 +142,7 @@
     <DefineConstants Condition="'$(FeatureObjCMarshal)' == 'true'">$(DefineConstants);FEATURE_OBJCMARSHAL</DefineConstants>
     <DefineConstants Condition="'$(FeatureWasmThreads)' == 'true'" >$(DefineConstants);FEATURE_WASM_THREADS</DefineConstants>
     <DefineConstants Condition="'$(FeatureWasmPerfTracing)' == 'true'">$(DefineConstants);FEATURE_WASM_PERFTRACING</DefineConstants>
+    <DefineConstants Condition="true">$(DefineConstants);FEATURE_DELIMIT_CONTROL</DefineConstants>
   </PropertyGroup>
 
   <!-- ILLinker settings -->
@@ -309,6 +310,9 @@
       <Compile Include="$(BclSourcesRoot)\Mono\SafeStringMarshal.cs" />
       <Compile Include="$(BclSourcesRoot)\Mono\SafeGPtrArrayHandle.cs" />
       <Compile Include="$(BclSourcesRoot)\System\TypeSpec.cs" />
+  </ItemGroup>
+  <ItemGroup>
+      <Compile Include="$(BclSourcesRoot)\Mono\Control.Delimited.cs" />
   </ItemGroup>
 
   <!-- Enable unsupported browser warnings -->

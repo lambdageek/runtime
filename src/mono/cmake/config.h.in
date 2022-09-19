@@ -937,4 +937,7 @@
 #error LLVM for host=Windows and target=Windows is only supported on x64 MSVC build.
 #endif
 
+/* Enable support for delimited continuations */
+#cmakedefine ENABLE_CONTROL_DELIMIT 1
+
 #endif
