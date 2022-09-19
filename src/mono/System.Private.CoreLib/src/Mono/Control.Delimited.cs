@@ -36,8 +36,8 @@ public static partial class Control
         /// Establishes the limit for calls to TransferControl within the given body.
         /// If the body returns
         [Intrinsic]
-        [DynamicDependency("ExecControlDelegateF`1")] // to call the body
-        public static R Delimit<R>(Func<R> body) => Delimit (body);
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static R Delimit<R>(Func<R> body) => body (); // IMPORTANT: do not change this - the interpreter looks for a call to a delegate to set up the continuation delimiter
 
         /// Captures the current continuation up to the nearest dynamically enclosing
         /// Delimit and calls continuationConsumer passing to it a handle the the captured
@@ -58,8 +58,6 @@ public static partial class Control
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static void ExecControlDelegateA<T>(Action<T> d, T x) => d (x);
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static R ExecControlDelegateF<R>(Func<R> d) => d ();
     }
 
 }
