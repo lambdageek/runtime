@@ -227,7 +227,9 @@ struct InterpFrame {
 
 #define frame_locals(frame) ((guchar*)(frame)->stack)
 
-typedef struct {
+typedef struct _ThreadContext ThreadContext;
+
+struct _ThreadContext {
 	/* Lets interpreter know it has to resume execution after EH */
 	gboolean has_resume_state;
 	/* Frame to resume execution at */
@@ -244,6 +246,13 @@ typedef struct {
 	/* End of the stack space excluding the redzone used to handle stack overflows */
 	guchar *stack_end;
 	guchar *stack_real_end;
+#ifdef ENABLE_CONTROL_DELIMIT
+	/* HACK: When there's a prompt, we allocate a new ThreadContext and point at the previous one.
+	 * What we shoudl do instead is have a stack of stack segments and handle extending the segments.
+	 * The current hack copies too much stuff and over-allocates a giant stack each time.
+	 */
+	ThreadContext *delimited_thread_context;
+#endif
 	/*
 	 * This stack pointer is the highest stack memory that can be used by the current frame. This does not
 	 * change throughout the execution of a frame and it is essentially the upper limit of the execution
@@ -253,7 +262,7 @@ typedef struct {
 	guchar *stack_pointer;
 	/* Used for allocation of localloc regions */
 	FrameDataAllocator data_stack;
-} ThreadContext;
+};
 
 typedef struct {
 	gint64 transform_time;

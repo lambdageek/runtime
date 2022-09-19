@@ -354,6 +354,35 @@ int mono_interp_traceopt = 0;
 
 #endif
 
+#ifdef ENABLE_CONTROL_DELIMIT
+#define INTERP_FRAME_HEAP_ALLOC 1
+#endif
+
+#ifdef INTERP_FRAME_HEAP_ALLOC
+static void interp_frame_destroy (InterpFrame *frame);
+
+#define INTERP_FRAME_NEW0(frame) InterpFrame *frame; frame = g_new0(InterpFrame, 1)
+// N.B. _not_ stack alloc newa0, heap alloc new0
+#define INTERP_FRAME_NEW_CHILD0(frame) frame = g_new0(InterpFrame, 1)
+#define INTERP_FRAME_FREE(frame) interp_frame_destroy (frame)
+#else
+#define INTERP_FRAME_NEW0(frame) InterpFrame _interp_frame__ ## frame = {0}; InterpFrame *frame = &_interp_frame__ ## frame
+#define INTERP_FRAME_NEW_CHILD0(frame) frame = g_newa0(InterpFrame, 1)
+#define INTERP_FRAME_FREE(frame) do { } while (0)
+#endif
+
+#ifdef INTERP_FRAME_HEAP_ALLOC
+static void
+interp_frame_destroy (InterpFrame *frame)
+{
+        do {
+                InterpFrame *next = frame->next_free;
+                g_free (frame);
+                frame = next;
+        } while (frame != NULL);
+}
+#endif
+
 static void
 clear_resume_state (ThreadContext *context)
 {
@@ -396,6 +425,7 @@ get_context (void)
 {
 	ThreadContext *context = (ThreadContext *) mono_native_tls_get_value (thread_context_id);
 	if (context == NULL) {
+                /* HACK: ENABLE_CONTROL_DELIMIT : need to make a new context (really just the stack) when there's a delimiter */
 		context = g_new0 (ThreadContext, 1);
 		context->stack_start = (guchar*)mono_valloc (0, INTERP_STACK_SIZE, MONO_MMAP_READ | MONO_MMAP_WRITE, MONO_MEM_ACCOUNT_INTERP_STACK);
 		context->stack_end = context->stack_start + INTERP_STACK_SIZE - INTERP_REDZONE_SIZE;
@@ -2104,10 +2134,11 @@ interp_runtime_invoke (MonoMethod *method, void *obj, void **params, MonoObject 
 
 	InterpMethod *imethod = mono_interp_get_imethod (invoke_wrapper);
 
-	InterpFrame frame = {0};
-	frame.imethod = imethod;
-	frame.stack = sp;
-	frame.retval = sp;
+	// InterpFrame frame = {0};
+        INTERP_FRAME_NEW0 (frame);
+	frame->imethod = imethod;
+	frame->stack = sp;
+	frame->retval = sp;
 
 	// The method to execute might not be transformed yet, so we don't know how much stack
 	// it uses. We bump the stack_pointer here so any code triggered by method compilation
@@ -2118,7 +2149,7 @@ interp_runtime_invoke (MonoMethod *method, void *obj, void **params, MonoObject 
 	g_assert (context->stack_pointer < context->stack_end);
 
 	MONO_ENTER_GC_UNSAFE;
-	interp_exec_method (&frame, context, NULL);
+	interp_exec_method (frame, context, NULL);
 	MONO_EXIT_GC_UNSAFE;
 
 	context->stack_pointer = (guchar*)sp;
@@ -2128,12 +2159,16 @@ interp_runtime_invoke (MonoMethod *method, void *obj, void **params, MonoObject 
 		 * This can happen on wasm where native frames cannot be skipped during EH.
 		 * EH processing will continue when control returns to the interpreter.
 		 */
+                INTERP_FRAME_FREE (frame);
+                // FIXME: ENABLE_CONTROL_DELIMIT - need some C++ dtor to unwind the InterpFrame allocations for us?
 		if (mono_aot_mode == MONO_AOT_MODE_LLVMONLY_INTERP)
 			mono_llvm_cpp_throw_exception ();
 		return NULL;
 	}
 	// The return value is at the bottom of the stack
-	return frame.stack->data.o;
+	MonoObject *result = frame->stack->data.o;
+        INTERP_FRAME_FREE (frame);
+        return result;
 }
 
 typedef struct {
@@ -2208,16 +2243,17 @@ interp_entry (InterpEntryData *data)
 		}
 	}
 
-	InterpFrame frame = {0};
-	frame.imethod = data->rmethod;
-	frame.stack = sp;
-	frame.retval = sp;
+	//InterpFrame frame = {0};
+        INTERP_FRAME_NEW0 (frame);
+	frame->imethod = data->rmethod;
+	frame->stack = sp;
+	frame->retval = sp;
 
 	context->stack_pointer = (guchar*)sp_args;
 	g_assert (context->stack_pointer < context->stack_end);
 
 	MONO_ENTER_GC_UNSAFE;
-	interp_exec_method (&frame, context, NULL);
+	interp_exec_method (frame, context, NULL);
 	MONO_EXIT_GC_UNSAFE;
 
 	context->stack_pointer = (guchar*)sp;
@@ -2228,9 +2264,11 @@ interp_entry (InterpEntryData *data)
 	check_pending_unwind (context);
 
 	if (mono_llvm_only) {
-		if (context->has_resume_state)
+		if (context->has_resume_state) {
+                        INTERP_FRAME_FREE (frame);
 			/* The exception will be handled in a frame above us */
 			mono_llvm_cpp_throw_exception ();
+                }
 	} else {
 		g_assert (!context->has_resume_state);
 	}
@@ -2238,7 +2276,8 @@ interp_entry (InterpEntryData *data)
 	// The return value is at the bottom of the stack, after the locals space
 	type = rmethod->rtype;
 	if (type->type != MONO_TYPE_VOID)
-		stackval_to_data (type, frame.stack, data->res, FALSE);
+		stackval_to_data (type, frame->stack, data->res, FALSE);
+        INTERP_FRAME_FREE (frame);
 }
 
 static void
@@ -2962,10 +3001,11 @@ interp_entry_from_trampoline (gpointer ccontext_untyped, gpointer rmethod_untype
 		sig = newsig;
 	}
 
-	InterpFrame frame = {0};
-	frame.imethod = rmethod;
-	frame.stack = sp;
-	frame.retval = sp;
+	//InterpFrame frame = {0};
+        INTERP_FRAME_NEW0 (frame);
+	frame->imethod = rmethod;
+	frame->stack = sp;
+	frame->retval = sp;
 
 	/* Copy the args saved in the trampoline to the frame stack */
 	gpointer retp = mono_arch_get_native_call_context_args (ccontext, &frame, sig);
@@ -2995,7 +3035,7 @@ interp_entry_from_trampoline (gpointer ccontext_untyped, gpointer rmethod_untype
 	g_assert (context->stack_pointer < context->stack_end);
 
 	MONO_ENTER_GC_UNSAFE;
-	interp_exec_method (&frame, context, NULL);
+	interp_exec_method (frame, context, NULL);
 	MONO_EXIT_GC_UNSAFE;
 
 	context->stack_pointer = (guchar*)sp;
@@ -3008,7 +3048,8 @@ interp_entry_from_trampoline (gpointer ccontext_untyped, gpointer rmethod_untype
 
 	/* Write back the return value */
 	/* 'frame' is still valid */
-	mono_arch_set_native_call_context_ret (ccontext, &frame, sig, retp);
+	mono_arch_set_native_call_context_ret (ccontext, frame, sig, retp);
+        INTERP_FRAME_FREE (frame);
 }
 
 #else
@@ -3768,6 +3809,7 @@ main_loop:
 			MINT_IN_BREAK;
 		}
 		MINT_IN_CASE(MINT_CALL_DELEGATE) {
+                        // FIXME: ENABLE_CONTROL_DELIMIT - add a case for Control.Delimit.Delimit calling a delegate here, and do our special setup before the call
 			// FIXME We don't need to encode the whole signature, just param_count
 			MonoMethodSignature *csignature = (MonoMethodSignature*)frame->imethod->data_items [ip [4]];
 			int param_count = csignature->param_count;
@@ -4015,7 +4057,8 @@ call:
 			{
 				InterpFrame *child_frame = frame->next_free;
 				if (!child_frame) {
-					child_frame = g_newa0 (InterpFrame, 1);
+					//child_frame = g_newa0 (InterpFrame, 1);
+                                        INTERP_FRAME_NEW_CHILD0(child_frame);
 					// Not free currently, but will be when allocation attempted.
 					frame->next_free = child_frame;
 				}
@@ -7541,6 +7584,7 @@ interp_run_filter (StackFrameInfo *frame, MonoException *ex, int clause_index, g
 	 * Have to run the clause in a new frame which is a copy of IFRAME, since
 	 * during debugging, there are two copies of the frame on the stack.
 	 */
+        // FIXME: ENABLE_CONTROL_DELIMIT - do something here?  maybe inhibit saving continuations from filter clauses
 	InterpFrame child_frame = {0};
 	child_frame.parent = iframe;
 	child_frame.imethod = iframe->imethod;
@@ -7623,6 +7667,7 @@ interp_run_clause_with_il_state (gpointer il_state_ptr, int clause_index, MonoOb
 	}
 
 	/* Allocate frame */
+        /* FIXME: ENABLE_CONTROL_DELIMIT - heap alloc here? */
 	InterpFrame frame = {0};
 	frame.imethod = imethod;
 	frame.stack = sp;

@@ -3372,6 +3372,7 @@ interp_transform_call (TransformData *td, MonoMethod *method, MonoMethod *target
 		td->last_ins->data [0] = get_data_item_index_imethod (td, mono_interp_get_imethod (target_method));
 	} else {
 		if (is_delegate_invoke) {
+			/* FIXME: ENABLE_CONTROL_DELIMIT - If we're in Control.Delimited.Delimit, emit a special opcode here */
 			interp_add_ins (td, MINT_CALL_DELEGATE);
 			interp_ins_set_dreg (td->last_ins, dreg);
 			interp_ins_set_sreg (td->last_ins, MINT_CALL_ARGS_SREG);
