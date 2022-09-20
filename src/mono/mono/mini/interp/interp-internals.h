@@ -252,6 +252,8 @@ struct _ThreadContext {
 	 * The current hack copies too much stuff and over-allocates a giant stack each time.
 	 */
 	ThreadContext *delimited_thread_context;
+	/* The frame of the call to Delimit */
+	InterpFrame *delimited_thread_frame;
 #endif
 	/*
 	 * This stack pointer is the highest stack memory that can be used by the current frame. This does not

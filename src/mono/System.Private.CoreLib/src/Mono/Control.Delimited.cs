@@ -37,6 +37,9 @@ public static partial class Control
         /// If the body returns
         [Intrinsic]
         [MethodImpl(MethodImplOptions.NoInlining)]
+        // FIXME - we should wrap "body" in a try/catch - we don't want exceptions to skip the
+        // delimit.restore opcode. (or we need the delimit.restore opcode in the interpreter to do a
+        // reasonable thing when it's in a "finally"
         public static R Delimit<R>(Func<R> body) => body (); // IMPORTANT: do not change this - the interpreter looks for a call to a delegate to set up the continuation delimiter
 
         /// Captures the current continuation up to the nearest dynamically enclosing

@@ -408,6 +408,7 @@ interp_set_delimited_continuation_delimiter (ThreadContext *context, InterpFrame
         ThreadContext *new_context = alloc_context ();
         /* FIXME: EMIT_CONTROL_DELIMIT - need to update the GC scanning to look at the old context */
         new_context->delimited_thread_context = context;
+        new_context->delimited_thread_frame = frame;
 
         mono_compiler_barrier ();
         set_context (new_context);
@@ -432,8 +433,7 @@ interp_restore_delimited_continuation_delimiter (ThreadContext *context, InterpF
 
         set_context (restored_context);
 
-	frame_data_allocator_free (&context->data_stack);
-        g_free (context);
+        destroy_context (context);
 
         return restored_context;
 }
@@ -3961,9 +3961,44 @@ main_loop:
 
 #ifdef ENABLE_CONTROL_DELIMIT
                         if (G_UNLIKELY (is_delimit_control)) {
-                                SAVE_INTERP_STATE (frame);
                                 /* swap out to a new ThreadContext so that we can capture the continuation below this call */
                                 context = interp_set_delimited_continuation_delimiter (context, frame);
+                                /* HACK: when we transfer to "goto call", below, the "locals" var is
+                                 * used to set up the stack pointer for the new frame.  We want this to be in the new context.
+                                 * So we make one more copy of the arguments on the new stack.
+                                 */
+                                const guint16 *old_ip = ip - 5; /* see ip+=5, above */
+                                unsigned char *old_locals = locals;
+                                int old_call_args_offset = call_args_offset;
+                                call_args_offset = 0;
+                                locals = context->stack_pointer;
+                                
+                                memmove (locals + call_args_offset, old_locals + old_call_args_offset, old_ip[3]);
+                                // HACK:
+                                // there's some copypasting here from the call label - but we need to call
+                                // reinit_frame with arguments that refer to the locals from the old stack pointer from the previous ThreadContext
+                                // need to make child_frame->retval point to old_locals + old_return_offset
+                                
+                                /*
+                                 * Make a non-recursive call by loading the new interpreter state based on child frame,
+                                 * and going back to the main loop.
+                                 */
+                                SAVE_INTERP_STATE (frame);
+
+                                // Allocate child frame.
+                                // FIXME: Add stack overflow checks
+                                {
+                                        InterpFrame *child_frame = frame->next_free;
+                                        if (!child_frame) {
+                                                //child_frame = g_newa0 (InterpFrame, 1);
+                                                INTERP_FRAME_NEW_CHILD0(child_frame);
+                                                // Not free currently, but will be when allocation attempted.
+                                                frame->next_free = child_frame;
+                                        }
+                                        reinit_frame (child_frame, frame, cmethod, old_locals + return_offset, locals + call_args_offset);
+                                        frame = child_frame;
+                                }
+                                goto call_with_frame_set;
                         }
 #endif
 
@@ -4156,6 +4191,8 @@ call:
 				reinit_frame (child_frame, frame, cmethod, locals + return_offset, locals + call_args_offset);
 				frame = child_frame;
 			}
+call_with_frame_set:
+                        (void)0;
 
 			MonoException *call_ex;
 			if (method_entry (context, frame,
@@ -7447,6 +7484,7 @@ MINT_IN_CASE(MINT_BRTRUE_I8_SP) ZEROP_SP(gint64, !=); MINT_IN_BREAK;
 #ifdef ENABLE_CONTROL_DELIMIT
                 MINT_IN_CASE(MINT_DELIMIT_RESTORE) {
                         g_warning ("in delimit.restore\n");
+                        ip += 1;
                         MINT_IN_BREAK;
                 }
                 MINT_IN_CASE(MINT_DELIMIT_TRANSFER_CONTROL) {
@@ -7511,15 +7549,27 @@ exit_frame:
 		/* Return to the main loop after a non-recursive interpreter call */
 		//printf ("R: %s -> %s %p\n", mono_method_get_full_name (frame->imethod->method), mono_method_get_full_name (frame->parent->imethod->method), frame->parent->state.ip);
 		g_assert_checked (frame->stack);
-		frame = frame->parent;
-		/*
-		 * FIXME We should be able to avoid dereferencing imethod here, if we will have
-		 * a param_area and all calls would inherit the same sp, or if we are full coop.
-		 */
-		context->stack_pointer = (guchar*)frame->stack + frame->imethod->alloca_size;
-		LOAD_INTERP_STATE (frame);
+#ifdef ENABLE_CONTROL_DELIMIT
+                if (G_UNLIKELY (context->delimited_thread_frame == frame->parent)) {
+                        /* we're returning from a delimited delegate back to Control.Delimited.Delimit, restore the context
+                         */
+                        context = interp_restore_delimited_continuation_delimiter (context, frame);
+                }
+#endif
 
-		CHECK_RESUME_STATE (context);
+                InterpFrame *prev_frame = frame;
+                frame = frame->parent;
+                // INTERP_FRAME_FREE (prev_frame);// FIXME: allocate all frames and free here
+                
+                /*
+                 * FIXME We should be able to avoid dereferencing imethod here, if we will have
+                 * a param_area and all calls would inherit the same sp, or if we are full coop.
+                 */
+                context->stack_pointer = (guchar*)frame->stack + frame->imethod->alloca_size;
+
+                LOAD_INTERP_STATE (frame);
+
+                CHECK_RESUME_STATE (context);
 
 		goto main_loop;
 	}

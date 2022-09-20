@@ -1850,6 +1850,24 @@ interp_emit_ldelema (TransformData *td, MonoClass *array_class, MonoClass *check
 	interp_ins_set_dreg (td->last_ins, td->sp [-1].local);
 }
 
+#ifdef ENABLE_CONTROL_DELIMIT
+static gboolean
+method_is_control_delimited_delimit (MonoMethod *target_method)
+{
+	gboolean in_corlib = m_class_get_image (target_method->klass) == mono_defaults.corlib;
+
+	const char *klass_name_space;
+	if (m_class_get_nested_in (target_method->klass))
+		klass_name_space = m_class_get_name_space (m_class_get_nested_in (target_method->klass));
+	else
+		klass_name_space = m_class_get_name_space (target_method->klass);
+	const char *klass_name = m_class_get_name (target_method->klass);
+
+	return in_corlib && !strcmp(klass_name_space, "Mono") && !strcmp(klass_name, "Delimited") && !strcmp(target_method->name, "Delimit");
+}
+#endif /* ENABLE_CONTROL_DELIMIT */
+
+
 /* Return TRUE if call transformation is finished */
 static gboolean
 interp_handle_intrinsics (TransformData *td, MonoMethod *target_method, MonoClass *constrained_class, MonoMethodSignature *csignature, gboolean readonly, int *op)
@@ -3034,6 +3052,9 @@ interp_transform_call (TransformData *td, MonoMethod *method, MonoMethod *target
 	int need_null_check = is_virtual;
 	int fp_sreg = -1, first_sreg = -1, dreg = -1;
 	gboolean is_delegate_invoke = FALSE;
+#ifdef ENABLE_CONTROL_DELIMIT
+	gboolean delimit_call_delegate = FALSE;
+#endif
 
 	guint32 token = read32 (td->ip + 1);
 
@@ -3372,8 +3393,17 @@ interp_transform_call (TransformData *td, MonoMethod *method, MonoMethod *target
 		td->last_ins->data [0] = get_data_item_index_imethod (td, mono_interp_get_imethod (target_method));
 	} else {
 		if (is_delegate_invoke) {
-			/* FIXME: ENABLE_CONTROL_DELIMIT - If we're in Control.Delimited.Delimit, emit a special opcode here */
-			interp_add_ins (td, MINT_CALL_DELEGATE);
+#ifdef ENABLE_CONTROL_DELIMIT
+			/* ENABLE_CONTROL_DELIMIT - If we're in Control.Delimited.Delimit, emit a special opcode here */
+			if (G_UNLIKELY (method_is_control_delimited_delimit (td->method))) {
+				delimit_call_delegate = TRUE;
+				interp_add_ins (td, MINT_DELIMIT_CALL_DELEGATE);
+			} else
+#endif /* ENABLE_CONTROL_DELIMIT */
+			{
+				interp_add_ins (td, MINT_CALL_DELEGATE);
+			}
+			
 			interp_ins_set_dreg (td->last_ins, dreg);
 			interp_ins_set_sreg (td->last_ins, MINT_CALL_ARGS_SREG);
 			td->last_ins->data [0] = GUINT32_TO_UINT16 (params_stack_size);
@@ -3462,6 +3492,11 @@ interp_transform_call (TransformData *td, MonoMethod *method, MonoMethod *target
 	td->ip += 5;
 	td->last_ins->info.call_args = call_args;
 
+#ifdef ENABLE_CONTROL_DELIMIT
+	if (G_UNLIKELY (delimit_call_delegate)) {
+		interp_add_ins (td, MINT_DELIMIT_RESTORE);
+	}
+#endif
 	return TRUE;
 }
 
