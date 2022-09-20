@@ -12,14 +12,13 @@ public static partial class Control
 
     public static class Delimited
     {
-        // Represents a captured continuation from a top frame accepting a value TCont to a
-        // delimited body returning TDelimit.
-        // If continuations were first class objects, this would just be Func<TCont, TDelimit>.
+        // Represents a captured continuation from a top frame accepting a value TCont.
+        // If continuations were first class objects, this would just be Action<TCont>.
         // The continuations are one-shot, so they can only be resumed once.
         // FIXME: this is <forall T>(T=>R) delimited continuations. We at least also need
         //  void-typed.  Possibly we should just add IntPtr versions and build the rest on top.
         //
-        public struct ContinuationHandle<TCont, TDelimit>
+        public struct ContinuationHandle<TCont>
         {
             private IntPtr _value; // this is a pointer into some saved continuation table in the runtime
             public IntPtr Value { get => _value; init { _value = value; } }
@@ -47,16 +46,21 @@ public static partial class Control
         /// continuation.  The continuation consumer executes as if it is the body of
         /// Delimit and returns an answer to it.
         /// The continuation consumer must not return normally, it must invoke some continuation.
+        public static T? TransferControl<T> (Action<ContinuationHandle<T>> continuationConsumer) => (T?)TransferControl_Internal((contHandle) => continuationConsumer (new ContinuationHandle<T> { Value = contHandle }));
+
+
         [Intrinsic]
         [DynamicDependency("ExecControlDelegateA`1")] // to call the continuation consumer
-        public static T TransferControl<T, R> (Action<ContinuationHandle<T, R>> continuationConsumer) => TransferControl(continuationConsumer);
-
+        private static object? TransferControl_Internal (Action<IntPtr> continuationConsumerWrapper) => TransferControl_Internal (continuationConsumerWrapper);
 
         /// Given a continuation handle and an answer to give to the continuation, resumes
         /// the continuation by placing it back as the active stack. The rest of the current computation following ResumeContinuation is abandoned.
         [DoesNotReturn]
+        public static void ResumeContinuation<T> (ContinuationHandle<T> continuation, T? answer) => ResumeContinuation_Internal(continuation.Value, (object?)answer);
+
+        [DoesNotReturn]
         [Intrinsic]
-        public static void ResumeContinuation<T, R> (ContinuationHandle<T, R> continuation, T answer) => ResumeContinuation(continuation, answer);
+        private static void ResumeContinuation_Internal (IntPtr continuation, object? answer) => ResumeContinuation_Internal(continuation, answer);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static void ExecControlDelegateA<T>(Action<T> d, T x) => d (x);

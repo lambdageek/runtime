@@ -15183,7 +15183,7 @@ namespace Mono
     {
         public static class Delimited
         {
-            public struct ContinuationHandle<TCont, TDelimit>
+            public struct ContinuationHandle<TCont>
             {
                 private readonly int _dummyPrimitive;
                 public System.IntPtr Value { get => throw null; init { } }
@@ -15193,10 +15193,10 @@ namespace Mono
 
             public static R Delimit<R>(System.Func<R> body) => throw null;
 
-            public static T TransferControl<T, R> (System.Action<ContinuationHandle<T, R>> continuationConsumer) => throw null;
+            public static T? TransferControl<T> (System.Action<ContinuationHandle<T>> continuationConsumer) => throw null;
 
             [System.Diagnostics.CodeAnalysis.DoesNotReturnAttribute]
-            public static void ResumeContinuation<T, R> (ContinuationHandle<T, R> continuation, T answer) => throw null;
+            public static void ResumeContinuation<T> (ContinuationHandle<T> continuation, T? answer) => throw null;
 
         }
     }
