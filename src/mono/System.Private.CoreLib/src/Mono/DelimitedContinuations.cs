@@ -59,22 +59,21 @@ public static partial class DelimitedContinuations
     {
 
         object? answer = null;
-        IntPtr continuation = CaptureContinuation(ref answer);
+        IntPtr continuation = IntPtr.Zero;
+        CaptureContinuation(ref continuation, ref answer);
         if (continuation != IntPtr.Zero) {
             // this runs on a fresh stack and must not return to TransferControl
              // FIXME: can we access these variables? we will probably need to duplicate part of the old data stack
             continuationConsumer (new ContinuationHandle<T> {Value = continuation });
             Environment.FailFast ("TransferControl<T> continuation consumer must not return!");
-            throw null;
-        } else {
-            // this runs in the original captured stack, and CaptureContinuation writes to 'answer'
-            // the value from ContinuationHandle.Resume()
-            return (T?)answer;
+            // this doesn't return, but there's no good way to convince Mono of that - adding throw null here confuses the interpreter
         }
+        return (T?)answer;
     }
 
     [Intrinsic]
-    private static IntPtr CaptureContinuation (ref object? answer) => CaptureContinuation(ref answer);
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void CaptureContinuation (ref IntPtr continuationDest, ref object? answerDest) => throw null!;
 
 
     [DoesNotReturn]
