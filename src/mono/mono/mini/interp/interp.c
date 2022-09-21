@@ -7497,11 +7497,37 @@ MINT_IN_CASE(MINT_BRTRUE_I8_SP) ZEROP_SP(gint64, !=); MINT_IN_BREAK;
                         *answerDest = mono_value_box_checked (mono_defaults.int32_class, (gpointer)&dummy_answer, error);
                         mono_error_assert_ok (error);
                         ip += 3;
+                        // TODO:
+                        // - make a new ThreadContext
+                        // - make a new InterpFrame that points to our caller
+                        // - set up a new value for locals
+                        // - copy all the old locals to the new locals so that old_call_args_offset is correct
+                        // - allocate a MonoInterpDelimitedContinuation set the context to the old context, set the frame to the old frame
+                        // - set the IP in the old frame to ip + 3.
+                        // - set the answer address in the continuation to answerDest.
+                        // - put the continuation ptr into continuationDest
+                        // - insert the new continuation into a global hash table
+                        // - continue the interpreter loop
+                        // FIXME: need to mess with root_continuations, too
                         g_warning ("implement delimit.capture_control");
                         MINT_IN_BREAK;
                 }
                 MINT_IN_CASE(MINT_DELIMIT_RESUME_CONTROL) {
                         g_error ("implement delimit.resume_control");
+                        // TODO
+                        // - load the answer value
+                        // - check that the given continuation is in the hash
+                        // - check that it hasn't fired
+                        // - set the context to the old ThreadContext (destroy the previous context)
+                        // - set the frame to the old InterpFrame (destroy the old frame)
+                        // - set locals to frame->sp
+                        // - set the return offset?
+                        // - put the answer value into answerDest
+                        // - put 0 into continuationDest
+                        // - set fired to true in the continuation (delete it?)
+                        // - continue the interpreter loop
+                        // FIXME: need to disallow restore if there's no root continuation
+                        // FIXME: store the root continuation at capture time and only allow restore if the current root matches the captured root?
                         MINT_IN_BREAK;
                 }
 #endif /* ENABLE_CONTROL_DELIMIT */
