@@ -15185,6 +15185,9 @@ namespace Mono
         {
             private readonly int _dummyPrimitive;
             public System.IntPtr Value { get => throw null; init { } }
+
+            [System.Diagnostics.CodeAnalysis.DoesNotReturnAttribute]
+            public void Resume (TCont? answer) => throw null;
         }
 
         public static bool IsSupported { get => throw null; }
@@ -15192,9 +15195,5 @@ namespace Mono
         public static R Delimit<R>(System.Func<R> body) => throw null;
 
         public static T? TransferControl<T> (System.Action<ContinuationHandle<T>> continuationConsumer) => throw null;
-
-        [System.Diagnostics.CodeAnalysis.DoesNotReturnAttribute]
-        public static void ResumeContinuation<T> (ContinuationHandle<T> continuation, T? answer) => throw null;
-
     }
 }

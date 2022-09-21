@@ -14,11 +14,11 @@ namespace HelloWorld
 	    Console.WriteLine ("before delimiting");
 	    int r = Mono.DelimitedContinuations.Delimit (static () => {
                 Console.WriteLine ("In delimited call");
-#if false
+#if true
 		Console.WriteLine ("before capturing continuation");
 		int resumedAns = Mono.DelimitedContinuations.TransferControl<int> (static (cont) => {
-		    Console.WriteLine ("In the control handler");
-		    Mono.DelimitedContinuations.ResumeContinuation (cont, 42);
+                    Console.WriteLine ("captured continuation pointer is 0x{0:x}", cont.Value);
+		    cont.Resume(42);
 		});
 		Console.WriteLine ("After continuation resumed with value {0}", resumedAns);
 		return resumedAns + 1;
@@ -33,8 +33,8 @@ namespace HelloWorld
 	private static Mono.DelimitedContinuations.ContinuationHandle<string> ConvertActionToCont(Action<string> action) {
 	    var capturedCont = Mono.DelimitedContinuations.TransferControl<Mono.DelimitedContinuations.ContinuationHandle<string>>( (retK) => {
 		string arg = Mono.DelimitedContinuations.TransferControl<string> ((callFKont) => {
-		    Mono.DelimitedContinuations.ResumeContinuation (retK, callFKont);
-		    });
+                    retK.Resume(callFKont);
+		});
 		action (arg);
 		/* act must not return! */
 	    });
@@ -67,34 +67,33 @@ namespace HelloWorld
 	    _queue.Enqueue(Mono.DelimitedContinuations.TransferControl<Mono.DelimitedContinuations.ContinuationHandle<int>> ((enqueueK) => {
                 /* Capture the continuation before calling the thread body */
 		int dummy = Mono.DelimitedContinuations.TransferControl<int> ((beforeCallK) => {
-		    Mono.DelimitedContinuations.ResumeContinuation (enqueueK, beforeCallK);
+		    enqueueK.Resume(beforeCallK);
 		});
 		int dummy2 = threadBody ();
 		/* after the thread completes either run the next suspended thread or return to the join point. */
 		if (_queue.Count == 0) {
-		    Mono.DelimitedContinuations.ResumeContinuation (_after_join_K, 123);
+		    _after_join_K.Resume(123);
 		} else {
-		    Mono.DelimitedContinuations.ResumeContinuation (_queue.Dequeue(), 456);
-		}
-	    }));
-		
-	}
+                    _queue.Dequeue().Resume(456);
+                }
+            }));
+        }
 
-	private static void Yield()
-	{
-	    Mono.DelimitedContinuations.TransferControl<int> ((afterYieldK) => {
+        private static void Yield()
+        {
+            Mono.DelimitedContinuations.TransferControl<int> ((afterYieldK) => {
                 // save the contiunation for the current thread
-		_queue.Enqueue (afterYieldK);
-		// and resume some other thread's continuation
-		Mono.DelimitedContinuations.ResumeContinuation (_queue.Dequeue (), 789);
-	    });
-	}
+                _queue.Enqueue (afterYieldK);
+                // and resume some other thread's continuation
+                _queue.Dequeue().Resume(789);
+            });
+        }
 
 	private static void JoinAllThreads ()
 	{
 	    Mono.DelimitedContinuations.TransferControl<int> ((afterJoinK) => {
 		_after_join_K = afterJoinK;
-		Mono.DelimitedContinuations.ResumeContinuation (_queue.Dequeue (), 999);
+		_queue.Dequeue().Resume(999);
 	    });
 	}
 
