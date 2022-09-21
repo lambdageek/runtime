@@ -1881,6 +1881,10 @@ interp_handle_intrinsics (TransformData *td, MonoMethod *target_method, MonoClas
 		klass_name_space = m_class_get_name_space (target_method->klass);
 	const char *klass_name = m_class_get_name (target_method->klass);
 
+        if (!strcmp (td->method->name, "TransferControl")) {
+                g_warning ("In TransferControl, looking at %s", tm);
+        }
+
 	if (target_method->klass == mono_defaults.string_class) {
 		if (tm [0] == 'g') {
 			if (strcmp (tm, "get_Chars") == 0)
@@ -1888,7 +1892,7 @@ interp_handle_intrinsics (TransformData *td, MonoMethod *target_method, MonoClas
 			else if (strcmp (tm, "get_Length") == 0)
 				*op = MINT_STRLEN;
 		}
-	} else if (mono_class_is_subclass_of_internal (target_method->klass, mono_defaults.array_class, FALSE)) {
+        } else if (mono_class_is_subclass_of_internal (target_method->klass, mono_defaults.array_class, FALSE)) {
 		if (!strcmp (tm, "get_Rank")) {
 			*op = MINT_ARRAY_RANK;
 		} else if (!strcmp (tm, "get_Length")) {
@@ -2499,7 +2503,16 @@ interp_handle_intrinsics (TransformData *td, MonoMethod *target_method, MonoClas
 				!strcmp (tm, "get_IsHardwareAccelerated"))) {
 		*op = MINT_LDC_I4_0;
 	}
-
+#ifdef ENABLE_CONTROL_DELIMIT
+        else if (in_corlib && !strcmp ("Mono", klass_name_space) && !strcmp ("DelimitedContinuations", klass_name) && !strcmp(tm, "CaptureContinuation")) {
+                g_warning ("replaced CaptureContinuation by intrinsic");
+                interp_add_ins (td, MINT_DELIMIT_CAPTURE_CONTROL);
+                td->sp -= 2;
+                interp_ins_set_sregs2 (td->last_ins, td->sp [0].local, td->sp [1].local);
+                td->ip += 5;
+                return TRUE;
+        }
+#endif /* ENABLE_CONTROL_DELIMIT */
 	return FALSE;
 }
 

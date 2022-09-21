@@ -788,5 +788,5 @@ OPDEF(MINT_INTRINS_U32_TO_DECSTR, "intrins_u32_to_decstr", 5, 1, 1, MintOpTwoSho
 OPDEF(MINT_INTRINS_WIDEN_ASCII_TO_UTF16, "intrins_widen_ascii_to_utf16", 5, 1, 3, MintOpNoArgs)
 
 OPDEF(MINT_DELIMIT_RESTORE, "delimit.restore", 1, 0, 0, MintOpNoArgs)
-OPDEF(MINT_DELIMIT_TRANSFER_CONTROL, "delimit.transfer_control", 3, 1, 1, MintOpNoArgs)
+OPDEF(MINT_DELIMIT_CAPTURE_CONTROL, "delimit.capture_control", 3, 0, 2, MintOpNoArgs)
 OPDEF(MINT_DELIMIT_RESUME_CONTROL, "delimit.resume_control", 3, 0, 2, MintOpNoArgs)

@@ -7487,8 +7487,17 @@ MINT_IN_CASE(MINT_BRTRUE_I8_SP) ZEROP_SP(gint64, !=); MINT_IN_BREAK;
                         ip += 1;
                         MINT_IN_BREAK;
                 }
-                MINT_IN_CASE(MINT_DELIMIT_TRANSFER_CONTROL) {
-                        g_error ("implement delimit.transfer_control");
+                MINT_IN_CASE(MINT_DELIMIT_CAPTURE_CONTROL) {
+                        gpointer *continuationDest = LOCAL_VAR (ip[1], gpointer*);
+                        MonoObject **answerDest = LOCAL_VAR (ip[2], MonoObject**);
+                        int32_t dummy_answer = 1234;
+                        g_assert (continuationDest != NULL);
+                        g_assert (answerDest != NULL);
+                        *continuationDest = NULL;
+                        *answerDest = mono_value_box_checked (mono_defaults.int32_class, (gpointer)&dummy_answer, error);
+                        mono_error_assert_ok (error);
+                        ip += 3;
+                        g_warning ("implement delimit.capture_control");
                         MINT_IN_BREAK;
                 }
                 MINT_IN_CASE(MINT_DELIMIT_RESUME_CONTROL) {
@@ -7557,7 +7566,7 @@ exit_frame:
                 }
 #endif
 
-                InterpFrame *prev_frame = frame;
+                //InterpFrame *prev_frame = frame;
                 frame = frame->parent;
                 // INTERP_FRAME_FREE (prev_frame);// FIXME: allocate all frames and free here
                 
