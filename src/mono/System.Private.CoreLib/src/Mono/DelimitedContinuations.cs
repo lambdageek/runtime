@@ -20,6 +20,12 @@ public static partial class DelimitedContinuations
     {
         private IntPtr _value; // this is a pointer into some saved continuation table in the runtime
         public IntPtr Value { get => _value; init { _value = value; } }
+
+        /// Given an answer to give to the continuation, resumes the continuation by placing it back
+        /// as the active stack. The rest of the current computation following the call to Resume is
+        /// abandoned.
+        [DoesNotReturn]
+        public void Resume (TCont? answer) => ResumeContinuation_Internal (Value, (object?)answer);
     }
 
     public static bool IsSupported {
@@ -28,38 +34,51 @@ public static partial class DelimitedContinuations
 #else
         get => false;
 #endif
+
     }
 
     /// Establishes the limit for calls to TransferControl within the given body.
     /// If the body returns
     [Intrinsic]
     [MethodImpl(MethodImplOptions.NoInlining)]
-    // FIXME - we should wrap "body" in a try/catch - we don't want exceptions to skip the
-    // delimit.restore opcode. (or we need the delimit.restore opcode in the interpreter to do a
-    // reasonable thing when it's in a "finally"
-    public static R Delimit<R>(Func<R> body) => body (); // IMPORTANT: do not change this - the interpreter looks for a call to a delegate to set up the continuation delimiter
+    public static R Delimit<R>(Func<R> body)
+    {
+        // FIXME - we should wrap "body" in a try/catch - we don't want exceptions to skip the
+        // delimit.restore opcode. (or we need the delimit.restore opcode in the interpreter to do a
+        // reasonable thing when it's in a "finally"
+        return body (); // IMPORTANT: do not change this - the interpreter looks for a call to a delegate to set up the continuation delimiter
+    }
 
     /// Captures the current continuation up to the nearest dynamically enclosing
     /// Delimit and calls continuationConsumer passing to it a handle the the captured
     /// continuation.  The continuation consumer executes as if it is the body of
     /// Delimit and returns an answer to it.
     /// The continuation consumer must not return normally, it must invoke some continuation.
-    public static T? TransferControl<T> (Action<ContinuationHandle<T>> continuationConsumer) => (T?)TransferControl_Internal((contHandle) => continuationConsumer (new ContinuationHandle<T> { Value = contHandle }));
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static T? TransferControl<T> (Action<ContinuationHandle<T>> continuationConsumer)
+    {
 
+        object? answer = null;
+        IntPtr continuation = CaptureContinuation(ref answer);
+        if (continuation != IntPtr.Zero) {
+            // this runs on a fresh stack and must not return to TransferControl
+             // FIXME: can we access these variables? we will probably need to duplicate part of the old data stack
+            continuationConsumer (new ContinuationHandle<T> {Value = continuation });
+            Environment.FailFast ("TransferControl<T> continuation consumer must not return!");
+            throw null;
+        } else {
+            // this runs in the original captured stack, and CaptureContinuation writes to 'answer'
+            // the value from ContinuationHandle.Resume()
+            return (T?)answer;
+        }
+    }
 
     [Intrinsic]
-    [DynamicDependency("ExecControlDelegateA`1")] // to call the continuation consumer
-    private static object? TransferControl_Internal (Action<IntPtr> continuationConsumerWrapper) => TransferControl_Internal (continuationConsumerWrapper);
+    private static IntPtr CaptureContinuation (ref object? answer) => CaptureContinuation(ref answer);
 
-    /// Given a continuation handle and an answer to give to the continuation, resumes
-    /// the continuation by placing it back as the active stack. The rest of the current computation following ResumeContinuation is abandoned.
-    [DoesNotReturn]
-    public static void ResumeContinuation<T> (ContinuationHandle<T> continuation, T? answer) => ResumeContinuation_Internal(continuation.Value, (object?)answer);
 
     [DoesNotReturn]
     [Intrinsic]
     private static void ResumeContinuation_Internal (IntPtr continuation, object? answer) => ResumeContinuation_Internal(continuation, answer);
 
-    [MethodImpl(MethodImplOptions.InternalCall)]
-    internal static void ExecControlDelegateA<T>(Action<T> d, T x) => d (x);
 }
