@@ -15179,25 +15179,22 @@ namespace System
 #endif // !BUILDING_CORELIB_REFERENCE
 namespace Mono
 {
-    public static class Control
+    public static class DelimitedContinuations
     {
-        public static class Delimited
+        public struct ContinuationHandle<TCont>
         {
-            public struct ContinuationHandle<TCont>
-            {
-                private readonly int _dummyPrimitive;
-                public System.IntPtr Value { get => throw null; init { } }
-            }
-
-            public static bool IsSupported { get => throw null; }
-
-            public static R Delimit<R>(System.Func<R> body) => throw null;
-
-            public static T? TransferControl<T> (System.Action<ContinuationHandle<T>> continuationConsumer) => throw null;
-
-            [System.Diagnostics.CodeAnalysis.DoesNotReturnAttribute]
-            public static void ResumeContinuation<T> (ContinuationHandle<T> continuation, T? answer) => throw null;
-
+            private readonly int _dummyPrimitive;
+            public System.IntPtr Value { get => throw null; init { } }
         }
+
+        public static bool IsSupported { get => throw null; }
+
+        public static R Delimit<R>(System.Func<R> body) => throw null;
+
+        public static T? TransferControl<T> (System.Action<ContinuationHandle<T>> continuationConsumer) => throw null;
+
+        [System.Diagnostics.CodeAnalysis.DoesNotReturnAttribute]
+        public static void ResumeContinuation<T> (ContinuationHandle<T> continuation, T? answer) => throw null;
+
     }
 }

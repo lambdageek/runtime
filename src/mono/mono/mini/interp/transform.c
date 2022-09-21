@@ -1863,7 +1863,7 @@ method_is_control_delimited_delimit (MonoMethod *target_method)
 		klass_name_space = m_class_get_name_space (target_method->klass);
 	const char *klass_name = m_class_get_name (target_method->klass);
 
-	return in_corlib && !strcmp(klass_name_space, "Mono") && !strcmp(klass_name, "Delimited") && !strcmp(target_method->name, "Delimit");
+	return in_corlib && !strcmp(klass_name_space, "Mono") && !strcmp(klass_name, "DelimitedContinuations") && !strcmp(target_method->name, "Delimit");
 }
 #endif /* ENABLE_CONTROL_DELIMIT */
 

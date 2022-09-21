@@ -312,7 +312,7 @@
       <Compile Include="$(BclSourcesRoot)\System\TypeSpec.cs" />
   </ItemGroup>
   <ItemGroup>
-      <Compile Include="$(BclSourcesRoot)\Mono\Control.Delimited.cs" />
+      <Compile Include="$(BclSourcesRoot)\Mono\DelimitedContinuations.cs" />
   </ItemGroup>
 
   <!-- Enable unsupported browser warnings -->
