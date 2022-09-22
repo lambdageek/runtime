@@ -2504,13 +2504,22 @@ interp_handle_intrinsics (TransformData *td, MonoMethod *target_method, MonoClas
 		*op = MINT_LDC_I4_0;
 	}
 #ifdef ENABLE_CONTROL_DELIMIT
-        else if (in_corlib && !strcmp ("Mono", klass_name_space) && !strcmp ("DelimitedContinuations", klass_name) && !strcmp(tm, "CaptureContinuation")) {
-                g_warning ("replaced CaptureContinuation by intrinsic");
-                interp_add_ins (td, MINT_DELIMIT_CAPTURE_CONTROL);
-                td->sp -= 2;
-                interp_ins_set_sregs2 (td->last_ins, td->sp [0].local, td->sp [1].local);
-                td->ip += 5;
-                return TRUE;
+        else if (in_corlib && !strcmp ("Mono", klass_name_space) && !strcmp ("DelimitedContinuations", klass_name)) {
+                if (!strcmp (tm, "CaptureContinuation")) {
+                        g_warning ("replaced CaptureContinuation by intrinsic");
+                        interp_add_ins (td, MINT_DELIMIT_CAPTURE_CONTROL);
+                        td->sp -= 2;
+                        interp_ins_set_sregs2 (td->last_ins, td->sp [0].local, td->sp [1].local);
+                        td->ip += 5;
+                        return TRUE;
+                } else if (!strcmp (tm, "ResumeContinuation_Internal")) {
+                        g_warning ("replaced ResumeContinuation_Intrenal by intrinsic");
+                        interp_add_ins (td, MINT_DELIMIT_RESUME_CONTROL);
+                        td->sp -= 2;
+                        interp_ins_set_sregs2 (td->last_ins, td->sp [0].local, td->sp [1].local);
+                        td->ip += 5;
+                        return TRUE;
+                }
         }
 #endif /* ENABLE_CONTROL_DELIMIT */
 	return FALSE;

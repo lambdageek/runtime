@@ -438,6 +438,17 @@ interp_restore_delimited_continuation_delimiter (ThreadContext *context, InterpF
         return restored_context;
 }
 
+static MonoInterpDelimitedContinuation *
+interp_capture_currernt_continuation (ThreadContext *context, InterpFrame *frame, MonoObject **answerDest, gpointer *continuationDest)
+{
+        MonoInterpDelimitedContinuation *k = g_new0 (MonoInterpDelimitedContinuation, 1);
+        k->resume_context = context;
+        k->resume_frame = frame;
+        k->continuationDest = continuationDest;
+        k->answerDest = answerDest;
+        return k;
+}
+
 #endif /* ENABLE_CONTROL_DELIMIT */
 
 static void
@@ -7496,7 +7507,6 @@ MINT_IN_CASE(MINT_BRTRUE_I8_SP) ZEROP_SP(gint64, !=); MINT_IN_BREAK;
                         *continuationDest = NULL;
                         *answerDest = mono_value_box_checked (mono_defaults.int32_class, (gpointer)&dummy_answer, error);
                         mono_error_assert_ok (error);
-                        ip += 3;
                         // TODO:
                         // - make a new ThreadContext
                         // - make a new InterpFrame that points to our caller
@@ -7509,11 +7519,48 @@ MINT_IN_CASE(MINT_BRTRUE_I8_SP) ZEROP_SP(gint64, !=); MINT_IN_BREAK;
                         // - insert the new continuation into a global hash table
                         // - continue the interpreter loop
                         // FIXME: need to mess with root_continuations, too
-                        g_warning ("implement delimit.capture_control");
+                        SAVE_INTERP_STATE(frame);
+                        frame->state.ip += 3; // skip over the current opcode in the continuation frame;
+                        MonoInterpDelimitedContinuation *captured_cont = interp_capture_currernt_continuation (context, frame, answerDest, continuationDest);
+                        *continuationDest = captured_cont; // the memmove below will put a copy of this value in the locals of the replacement frame
+                        {
+                                // set a new ThreadContext and make a frame that looks just like the old frame but in the new stack area so that
+                                // we can continue the current method so that it can invoke the control handler delegate
+                                ThreadContext *new_context = alloc_context ();
+                                INTERP_FRAME_NEW0 (replacement_frame);
+                                replacement_frame->imethod = frame->imethod;
+                                guint32 alloca_size = replacement_frame->imethod->alloca_size;
+                                unsigned char *locals_copy_start = new_context->stack_pointer;
+                                replacement_frame->stack = (stackval*)locals_copy_start;
+                                replacement_frame->retval = (stackval*)locals_copy_start; // doesn't matter - we're not going to return anything
+                                new_context->stack_pointer = locals_copy_start + alloca_size;
+                                replacement_frame->state.ip = ip + 3; // skip over delimit.capture_control instruction
+
+                                // Make a snapshot of the locals for the replacement frame. The
+                                // changes won't be reflected in the captured frame, but that's ok
+                                // because we dont' expect them to be shared.
+                                memmove (locals_copy_start, locals, replacement_frame->imethod->alloca_size);
+
+                                frame = replacement_frame;
+                                context = new_context;
+
+                                mono_compiler_barrier ();
+                                set_context (context);
+
+                                LOAD_INTERP_STATE (frame);
+                        }
+
+
                         MINT_IN_BREAK;
                 }
                 MINT_IN_CASE(MINT_DELIMIT_RESUME_CONTROL) {
-                        g_error ("implement delimit.resume_control");
+                        gpointer continuation_src = LOCAL_VAR (ip[1], gpointer);
+                        MonoObject *answer_src = LOCAL_VAR (ip[2], MonoObject*);
+                        g_assert (continuation_src != NULL);
+                        MonoInterpDelimitedContinuation *captured_cont = (MonoInterpDelimitedContinuation *)continuation_src;
+                        g_assert (captured_cont->continuationDest != NULL);
+                        *captured_cont->continuationDest = NULL;
+                        *captured_cont->answerDest = answer_src;
                         // TODO
                         // - load the answer value
                         // - check that the given continuation is in the hash
@@ -7528,6 +7575,22 @@ MINT_IN_CASE(MINT_BRTRUE_I8_SP) ZEROP_SP(gint64, !=); MINT_IN_BREAK;
                         // - continue the interpreter loop
                         // FIXME: need to disallow restore if there's no root continuation
                         // FIXME: store the root continuation at capture time and only allow restore if the current root matches the captured root?
+                        {
+                                ThreadContext *abandon_context = context;
+                                SAVE_INTERP_STATE (frame);
+                                InterpFrame *abandon_frame = frame;
+
+                                context = captured_cont->resume_context;
+                                frame = captured_cont->resume_frame;
+
+                                LOAD_INTERP_STATE (frame);
+
+
+                                // FIXME: free the memory for the abandonded state
+
+                                // FIXME: disallow resuming from the root continuation
+                        }
+
                         MINT_IN_BREAK;
                 }
 #endif /* ENABLE_CONTROL_DELIMIT */

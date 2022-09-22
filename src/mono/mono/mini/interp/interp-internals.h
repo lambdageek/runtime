@@ -266,14 +266,14 @@ struct _ThreadContext {
 	FrameDataAllocator data_stack;
 };
 
-#ifdef ENABLE_DELIMIT_CONTROL
+#ifdef ENABLE_CONTROL_DELIMIT
 typedef struct {
         // both continuationDest and answerDest are in the stack of the captured continuation itself
         // we resume in code that immediately loads them
         gpointer *continuationDest; // where to write the ContinuationHandle from the CaputreContinuation call
         MonoObject **answerDest; // where to write the answer object when resuming
         ThreadContext *resume_context; // captured context
-        MonoInterpFrame *resume_frame; // captured frame
+        InterpFrame *resume_frame; // captured frame
 } MonoInterpDelimitedContinuation;
 
 typedef struct {
@@ -282,7 +282,7 @@ typedef struct {
         GHashTable *root_continuations; // maps MonoThreadInfo* to a MonoInterpDelimitedContinuation* or null
 } MonoInterpDelimitedContinuationTable;
 
-#endif /* ENABLE_DELIMIT_CONTROL */
+#endif /* ENABLE_CONTROL_DELIMIT */
 
 typedef struct {
 	gint64 transform_time;
