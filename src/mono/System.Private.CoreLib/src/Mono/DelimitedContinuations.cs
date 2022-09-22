@@ -62,8 +62,9 @@ public static partial class DelimitedContinuations
         IntPtr continuation = IntPtr.Zero;
         CaptureContinuation(ref continuation, ref answer);
         if (continuation != IntPtr.Zero) {
-            // this runs on a fresh stack and must not return to TransferControl
-             // FIXME: can we access these variables? we will probably need to duplicate part of the old data stack
+            // This branch runs on a fresh stack and must not return from TransferControl.
+            // In fact the continuationConsumer must finish by calling Resume on some continuation - it return normally or throw.
+            // Changes to locals will not be reflected back in the resumed continuation.
             continuationConsumer (new ContinuationHandle<T> {Value = continuation });
             Environment.FailFast ("TransferControl<T> continuation consumer must not return!");
             // this doesn't return, but there's no good way to convince Mono of that - adding throw null here confuses the interpreter
