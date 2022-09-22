@@ -1,0 +1,35 @@
+#controls {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: minmax(10%, auto);
+    column-gap: 5em;
+    align-items: center;
+}
+
+#out {
+    white-space: pre;
+}
+
+#description {
+    font-size: large;
+    margin: 2ex 0;
+}
+
+#controls>div {
+    padding: 5px;
+    vertical-align: middle;
+}
+
+#startstop {
+    margin: 0 1em;
+}
+
+#tick {
+    border: 5px solid rgb(63, 50, 50);
+    width: 30%;
+    font-size: 400%;
+    color: darkolivegreen;
+    text-align: center;
+
+    justify-self: self-end;
+}

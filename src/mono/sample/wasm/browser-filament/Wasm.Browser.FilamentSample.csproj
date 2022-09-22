@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\DefaultBrowserSample.targets" />
+  <PropertyGroup>
+    <_SampleProject>Wasm.Browser.FilamentSample.csproj</_SampleProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <WasmExtraFilesToDeploy Include="style.css" />
+  </ItemGroup>
+</Project>
