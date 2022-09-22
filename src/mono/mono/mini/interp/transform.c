@@ -1881,10 +1881,6 @@ interp_handle_intrinsics (TransformData *td, MonoMethod *target_method, MonoClas
 		klass_name_space = m_class_get_name_space (target_method->klass);
 	const char *klass_name = m_class_get_name (target_method->klass);
 
-        if (!strcmp (td->method->name, "TransferControl")) {
-                g_warning ("In TransferControl, looking at %s", tm);
-        }
-
 	if (target_method->klass == mono_defaults.string_class) {
 		if (tm [0] == 'g') {
 			if (strcmp (tm, "get_Chars") == 0)
@@ -2506,14 +2502,12 @@ interp_handle_intrinsics (TransformData *td, MonoMethod *target_method, MonoClas
 #ifdef ENABLE_CONTROL_DELIMIT
         else if (in_corlib && !strcmp ("Mono", klass_name_space) && !strcmp ("DelimitedContinuations", klass_name)) {
                 if (!strcmp (tm, "CaptureContinuation")) {
-                        g_warning ("replaced CaptureContinuation by intrinsic");
                         interp_add_ins (td, MINT_DELIMIT_CAPTURE_CONTROL);
                         td->sp -= 2;
                         interp_ins_set_sregs2 (td->last_ins, td->sp [0].local, td->sp [1].local);
                         td->ip += 5;
                         return TRUE;
                 } else if (!strcmp (tm, "ResumeContinuation_Internal")) {
-                        g_warning ("replaced ResumeContinuation_Intrenal by intrinsic");
                         interp_add_ins (td, MINT_DELIMIT_RESUME_CONTROL);
                         td->sp -= 2;
                         interp_ins_set_sregs2 (td->last_ins, td->sp [0].local, td->sp [1].local);

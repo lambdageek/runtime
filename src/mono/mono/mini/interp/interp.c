@@ -7494,7 +7494,7 @@ MINT_IN_CASE(MINT_BRTRUE_I8_SP) ZEROP_SP(gint64, !=); MINT_IN_BREAK;
 		}
 #ifdef ENABLE_CONTROL_DELIMIT
                 MINT_IN_CASE(MINT_DELIMIT_RESTORE) {
-                        g_warning ("in delimit.restore\n");
+                        // FIXME: we don't need this anymore - all the real work is in the return from a delimited Context case of exit_frame
                         ip += 1;
                         MINT_IN_BREAK;
                 }
@@ -7590,6 +7590,9 @@ MINT_IN_CASE(MINT_BRTRUE_I8_SP) ZEROP_SP(gint64, !=); MINT_IN_BREAK;
 
                                 // FIXME: disallow resuming from the root continuation
                         }
+
+                        // FIXME: dispose the restored continuation
+
 
                         MINT_IN_BREAK;
                 }
