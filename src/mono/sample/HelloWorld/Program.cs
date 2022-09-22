@@ -11,21 +11,9 @@ namespace HelloWorld
         private static void Main(string[] args)
         {
 
-	    Console.WriteLine ("before delimiting");
 	    int r = Mono.DelimitedContinuations.Delimit (static () => {
-                Console.WriteLine ("In delimited call");
-#if true
-		Console.WriteLine ("before capturing continuation");
-		int resumedAns = Mono.DelimitedContinuations.TransferControl<int> (static (cont) => {
-                    Console.WriteLine ("captured continuation pointer is 0x{0:x}", cont.Value);
-		    cont.Resume(42);
-		});
-		Console.WriteLine ("After continuation resumed with value {0}", resumedAns);
-		return resumedAns + 1;
-#else
+                Demo();
 		return 1;
-#endif
-
 	    });
 	    Console.WriteLine ("After delimiter, answer {0}", r);
         }
