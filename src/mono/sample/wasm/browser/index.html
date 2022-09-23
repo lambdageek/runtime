@@ -8,12 +8,27 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script type='module' src="./main.js"></script>
+<style>
+    .good {
+        color: darkgreen;
+    }
+
+    .danger {
+        color: darkgoldenrod;
+    }
+
+    .demobutton:hover {
+        border-width: thick;
+        border-style: solid;
+        border-color: black;
+    }
+</style>
 </head>
 
 <body>
   <h3 id="header">Wasm Browser Sample</h3>
-<button id="btnRunSync" type="button" style="color: darkgoldenrod">Run Synchronously</button>
-<button id="btnRunGreen" type="button" style="color: darkgreen">Run Green Thread</button>
+<button id="btnRunSync" class="danger demobutton" type="button">Run Synchronously</button>
+<button id="btnRunGreen" class="good demobutton" type="button">Run Green Thread</button>
   Running a long computation : <span id="out"></span>
 </body>
 

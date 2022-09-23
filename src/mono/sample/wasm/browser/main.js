@@ -3,8 +3,28 @@
 
 import { dotnet, exit } from './dotnet.js'
 
+let pumpOnce = null;
+
 function displayMeaning(meaning) {
     document.getElementById("out").innerHTML = `${meaning}`;
+}
+
+let pumping = false;
+let pumpCount = 0;
+
+function requestPumping() {
+    if (pumping !== undefined) {
+        pumping = true;
+        pumpCount = 0;
+        setTimeout(doPump, 0);
+    }
+}
+
+function doPump () {
+    pumpCount++;
+    if (pumpOnce (pumpCount)) {
+        setTimeout(doPump, 500);
+    }
 }
 
 try {
@@ -16,6 +36,9 @@ try {
         Sample: {
             Test: {
                 displayMeaning
+            },
+            Scheduler: {
+                requestPumping
             }
         }
     });
@@ -24,6 +47,7 @@ try {
 
     const demo = exports.Sample.Test.Demo;
     const demoSync = exports.Sample.Test.DemoSync;
+    pumpOnce = exports.Sample.Scheduler.PumpOnce;
 
     document.getElementById("btnRunSync").addEventListener("click", () => {
         demoSync();

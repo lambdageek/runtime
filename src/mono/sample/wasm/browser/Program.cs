@@ -28,6 +28,9 @@ namespace Sample
             ThreadMain();
         }
 
+        const int WorkSlice = 100;  // give the async version 100ms to do work between yields
+
+
         [JSExport]
         [return: JSMarshalAs<JSType.Promise<JSType.Void>>]
         public static Task Demo()
@@ -68,10 +71,11 @@ namespace Sample
         public static void MaybeYield()
         {
             DateTime now = DateTime.UtcNow;
-            if ((now - lastYield).TotalMilliseconds > 50) {
-                lastYield = now;
+            if ((now - lastYield).TotalMilliseconds > WorkSlice) {
                 DisplayMeaning ($"Yielding in iteration {CurrentIteration}, after {CallCount} recursive calls");
                 Scheduler.YieldCurrent();
+                // set when we resume!
+                lastYield = DateTime.UtcNow;
             }
         }
 #endif
@@ -149,23 +153,27 @@ namespace Sample
         internal DC.ContinuationHandle ReturnToSchedulerContinuation {get ; private set; }
 
         // a convenience
-        private static DC.ContinuationHandle ZeroContinuation = default;
+        private readonly static DC.ContinuationHandle ZeroContinuation = default;
 
-        private GreenThread (Task completed) { Task = completed; CurrentContinuation = ZeroContinuation; }
+        private GreenThread (Task completed) {
+            Task = completed;
+            CurrentContinuation = ZeroContinuation;
+            ReturnToSchedulerContinuation = ZeroContinuation;
+        }
 
         public static GreenThread RunAsGreenThread (Action threadFunc) {
             TaskCompletionSource tcs = new ();
             GreenThread t = new (tcs.Task);
             DC.ContinuationHandle startCont = DC.TransferControl<DC.ContinuationHandle> ((enqueueK) => {
                 DC.TransferControl ((beforeCallK) => {
-                    enqueueK.Resume(beforeCallK);
+                    enqueueK.Resume (beforeCallK);
                 });
                 threadFunc();
                 tcs.SetResult();
                 t.ReturnToScheduler();
             });
             t.CurrentContinuation = startCont;
-            Scheduler.Enqueue (t);
+            Scheduler.EnqueueNew (t);
             return t;
         }
 
@@ -182,7 +190,7 @@ namespace Sample
         public void Yield() {
             DC.TransferControl ((afterYieldK) => {
                 CurrentContinuation = afterYieldK;
-                Scheduler.Enqueue (this);
+                Scheduler.EnqueueResume (this);
                 ReturnToScheduler ();
             });
         }
@@ -198,12 +206,13 @@ namespace Sample
         }
     }
 
-    public class Scheduler {
+    public partial class Scheduler {
         private static Queue<GreenThread> Queue { get; } = new();
 
         public static GreenThread Current {get ; private set; } = null;
 
-        public static void YieldCurrent() {
+        public static void YieldCurrent()
+        {
             if (Current != null) {
                 GreenThread g = Current;
                 Current = null;
@@ -211,22 +220,52 @@ namespace Sample
             }
         }
 
-        public static async Task Loop() {
+#if false
+        public static async Task Loop()
+        {
             await Task.Delay (1);
-            while (Queue.TryDequeue (out GreenThread green)) {
+            int count = 0;
+            while (PumpScheduler(count)) {
+                count ++;
+                DateTime now = DateTime.UtcNow;
+                await Task.Delay(1000);
+                DateTime now2 = DateTime.UtcNow;
+            }
+        }
+#endif
+
+        public static bool PumpScheduler(int count){
+            if (Queue.TryDequeue (out GreenThread green)) {
+                Console.WriteLine ($"Executing scheduler iteration {count}");
                 Current = green;
                 Current.Execute();
                 Current = null;
-                await Task.Delay(1000);
+                return true;
             }
+            return false;
         }
 
-        public static void Enqueue (GreenThread work) {
+        internal static void EnqueueNew (GreenThread work)
+        {
             bool startLoop = Queue.Count == 0;
             Queue.Enqueue (work);
             if (startLoop) {
-                Task.Run (Loop);
+                RequestPumping();
             }
+        }
+
+        internal static void EnqueueResume (GreenThread work)
+        {
+            Queue.Enqueue (work);
+        }
+
+        [JSImport("Sample.Scheduler.requestPumping", "main.js")]
+        static partial void RequestPumping();
+
+        [JSExport]
+        static int PumpOnce(int count)
+        {
+            return PumpScheduler(count) ? 1 : 0;
         }
     }
 
