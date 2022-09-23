@@ -23,6 +23,12 @@ namespace Sample
 
 #if true
         [JSExport]
+        public static void DemoSync()
+        {
+            ThreadMain();
+        }
+
+        [JSExport]
         [return: JSMarshalAs<JSType.Promise<JSType.Void>>]
         public static Task Demo()
         {
@@ -198,8 +204,11 @@ namespace Sample
         public static GreenThread Current {get ; private set; } = null;
 
         public static void YieldCurrent() {
-            if (Current != null)
-                Current.Yield ();
+            if (Current != null) {
+                GreenThread g = Current;
+                Current = null;
+                g.Yield ();
+            }
         }
 
         public static async Task Loop() {
@@ -207,6 +216,7 @@ namespace Sample
             while (Queue.TryDequeue (out GreenThread green)) {
                 Current = green;
                 Current.Execute();
+                Current = null;
                 await Task.Delay(1000);
             }
         }

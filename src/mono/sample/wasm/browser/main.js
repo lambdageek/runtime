@@ -23,8 +23,15 @@ try {
     const exports = await getAssemblyExports(config.mainAssemblyName);
 
     const demo = exports.Sample.Test.Demo;
+    const demoSync = exports.Sample.Test.DemoSync;
 
-    await demo ();
+    document.getElementById("btnRunSync").addEventListener("click", () => {
+        demoSync();
+    });
+
+    document.getElementById("btnRunGreen").addEventListener("click", async () => {
+        await demo();
+    });
 
     await dotnet.run();
 }
