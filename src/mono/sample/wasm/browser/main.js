@@ -23,7 +23,7 @@ function requestPumping() {
 function doPump () {
     pumpCount++;
     if (pumpOnce (pumpCount)) {
-        setTimeout(doPump, 500);
+        setTimeout(doPump, 0);
     }
 }
 
