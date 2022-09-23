@@ -3,8 +3,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.InteropServices;
+using DC = Mono.DelimitedContinuations;
 
 namespace Sample
 {
@@ -12,14 +14,64 @@ namespace Sample
     {
         public static int Main(string[] args)
         {
-            Demo();
-            DisplayMeaning(42);
+            //Demo();
+            //DisplayMeaning("42");
             return 0;
         }
 
         [JSImport("Sample.Test.displayMeaning", "main.js")]
-        internal static partial void DisplayMeaning(int meaning);
+        internal static partial void DisplayMeaning(string meaning);
 
+#if true
+        [JSExport]
+        [return: JSMarshalAs<JSType.Promise<JSType.Void>>]
+        private static Task Demo()
+        {
+            GreenThread t = GreenThread.RunAsGreenThread (ThreadMain);
+            return t.Task;
+        }
+
+        private static int CurrentIteration = 0;
+        private static long CallCount = 0;
+
+        public static void ThreadMain ()
+        {
+            const int TotalIterations = 10;
+            const int N = 25;
+            for (int i = 0; i < TotalIterations; i++) {
+                CallCount = 0;
+                CurrentIteration = i;
+                Console.WriteLine ($"running iteration {i}");
+                long answer = SlowFib (N);
+                Console.WriteLine ($"iteration {i} computed {answer}");
+                DisplayMeaning ($"iteration {i} computed {answer}");
+            }
+        }
+
+        public static long SlowFib (int n)
+        {
+            CallCount++;
+            MaybeYield();
+            if (n <= 1)
+                return 1;
+            else
+                return SlowFib (n - 1)  + SlowFib (n - 2);
+        }
+
+        static private DateTime lastYield = DateTime.UtcNow;
+
+        public static void MaybeYield()
+        {
+            DateTime now = DateTime.UtcNow;
+            if ((now - lastYield).TotalMilliseconds > 50) {
+                lastYield = now;
+                DisplayMeaning ($"Yielding in iteration {CurrentIteration}, after {CallCount} recursive calls");
+                Scheduler.YieldCurrent();
+            }
+        }
+#endif
+
+#if false
 	private static int ThreadMain()
 	{
 	    Console.WriteLine ("A");
@@ -30,7 +82,7 @@ namespace Sample
 
 	private static void Demo()
 	{
-	    int dummy = Mono.DelimitedContinuations.Delimit<int>(static () => {
+	    int dummy = DC.Delimit<int>(static () => {
 		ThreadCreate(ThreadMain);
 		ThreadCreate(ThreadMain);
 		JoinAllThreads();
@@ -38,14 +90,14 @@ namespace Sample
 	    });
 	}
 
-	private static Queue<Mono.DelimitedContinuations.ContinuationHandle<int>> _queue = new ();
-	private static Mono.DelimitedContinuations.ContinuationHandle<int> _after_join_K = default;
+	private static Queue<DC.ContinuationHandle<int>> _queue = new ();
+	private static DC.ContinuationHandle<int> _after_join_K = default;
 
 	private static void ThreadCreate(Func<int> threadBody)
 	{
-	    _queue.Enqueue(Mono.DelimitedContinuations.TransferControl<Mono.DelimitedContinuations.ContinuationHandle<int>> ((enqueueK) => {
+	    _queue.Enqueue(DC.TransferControl<DC.ContinuationHandle<int>> ((enqueueK) => {
                 /* Capture the continuation before calling the thread body */
-		int dummy = Mono.DelimitedContinuations.TransferControl<int> ((beforeCallK) => {
+		int dummy = DC.TransferControl<int> ((beforeCallK) => {
 		    enqueueK.Resume(beforeCallK);
 		});
 		int dummy2 = threadBody ();
@@ -60,7 +112,7 @@ namespace Sample
 
         private static void Yield()
         {
-            Mono.DelimitedContinuations.TransferControl<int> ((afterYieldK) => {
+            DC.TransferControl<int> ((afterYieldK) => {
                 // save the contiunation for the current thread
                 _queue.Enqueue (afterYieldK);
                 // and resume some other thread's continuation
@@ -70,12 +122,103 @@ namespace Sample
 
 	private static void JoinAllThreads ()
 	{
-	    Mono.DelimitedContinuations.TransferControl<int> ((afterJoinK) => {
+	    DC.TransferControl<int> ((afterJoinK) => {
 		_after_join_K = afterJoinK;
 		_queue.Dequeue().Resume(999);
 	    });
 	}
+#endif
 
+    }
+
+
+    // Just a hint to the programmer that the method is in a continuation
+    [AttributeUsage(AttributeTargets.Method)]
+    public class InContinuationAttribute : Attribute {
+        public InContinuationAttribute () { }
+    }
+
+    public class GreenThread {
+        public Task Task { get; init; }
+        internal DC.ContinuationHandle<int> CurrentContinuation { get; private set; }
+        internal DC.ContinuationHandle<int> ReturnToSchedulerContinuation {get ; private set; }
+
+        // a convenience
+        private static DC.ContinuationHandle<int> ZeroContinuation = default;
+
+        private GreenThread (Task completed) { Task = completed; CurrentContinuation = ZeroContinuation; }
+
+        public static GreenThread RunAsGreenThread (Action threadFunc) {
+            TaskCompletionSource tcs = new ();
+            GreenThread t = new (tcs.Task);
+            DC.ContinuationHandle<int> startCont = DC.TransferControl<DC.ContinuationHandle<int>> ((enqueueK) => {
+                int dummy = DC.TransferControl<int> ((beforeCallK) => {
+                    enqueueK.Resume(beforeCallK);
+                });
+                threadFunc();
+                tcs.SetResult();
+                t.ReturnToScheduler();
+            });
+            t.CurrentContinuation = startCont;
+            Scheduler.Enqueue (t);
+            return t;
+        }
+
+        [InContinuation]
+        private void ReturnToScheduler()
+        {
+            var retK = ReturnToSchedulerContinuation;
+            ReturnToSchedulerContinuation = ZeroContinuation;
+            retK.Resume (123);
+        }
+        
+        
+        [InContinuation]
+        public void Yield() {
+            DC.TransferControl<int> ((afterYieldK) => {
+                CurrentContinuation = afterYieldK;
+                Scheduler.Enqueue (this);
+                ReturnToScheduler ();
+            });
+        }
+
+        [InContinuation]
+        internal void Execute () {
+            DC.TransferControl<int>((returnToSchedulerK) => {
+                var computeK = CurrentContinuation;
+                CurrentContinuation = ZeroContinuation;
+                ReturnToSchedulerContinuation = returnToSchedulerK;
+                computeK.Resume (456);
+            });
+        }
+    }
+
+    public class Scheduler {
+        private static Queue<GreenThread> Queue { get; } = new();
+
+        public static GreenThread Current {get ; private set; } = null;
+
+        public static void YieldCurrent() {
+            if (Current != null)
+                Current.Yield ();
+        }
+
+        public static async Task Loop() {
+            await Task.Delay (1);
+            while (Queue.TryDequeue (out GreenThread green)) {
+                Current = green;
+                Current.Execute();
+                await Task.Delay (1000);
+            }
+        }
+
+        public static void Enqueue (GreenThread work) {
+            bool startLoop = Queue.Count == 0;
+            Queue.Enqueue (work);
+            if (startLoop) {
+                Task.Run (Loop);
+            }
+        }
     }
 
 }

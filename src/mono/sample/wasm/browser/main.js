@@ -8,7 +8,7 @@ function displayMeaning(meaning) {
 }
 
 try {
-    const { setModuleImports } = await dotnet
+    const { setModuleImports, getConfig, getAssemblyExports } = await dotnet
         .withElementOnExit()
         .create();
 
@@ -19,6 +19,12 @@ try {
             }
         }
     });
+    const config = getConfig();
+    const exports = await getAssemblyExports(config.mainAssemblyName);
+
+    const demo = exports.Sample.Test.Demo;
+
+    await demo ();
 
     await dotnet.run();
 }
