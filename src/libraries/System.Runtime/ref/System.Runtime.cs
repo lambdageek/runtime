@@ -15181,6 +15181,15 @@ namespace Mono
 {
     public static class DelimitedContinuations
     {
+
+        public struct ContinuationHandle
+        {
+            private readonly int _dummyPrimitive;
+            public System.IntPtr Value { get => throw null; init { } }
+
+            [System.Diagnostics.CodeAnalysis.DoesNotReturnAttribute]
+            public void Resume() => throw null;
+        }
         public struct ContinuationHandle<TCont>
         {
             private readonly int _dummyPrimitive;
@@ -15194,6 +15203,10 @@ namespace Mono
 
         public static R Delimit<R>(System.Func<R> body) => throw null;
 
+
+        public static void TransferControl(System.Action<ContinuationHandle> continuationConsumer) => throw null;
         public static T? TransferControl<T> (System.Action<ContinuationHandle<T>> continuationConsumer) => throw null;
+
+
     }
 }

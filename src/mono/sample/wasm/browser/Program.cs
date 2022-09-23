@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices.JavaScript;
-using System.Runtime.InteropServices;
 using DC = Mono.DelimitedContinuations;
 
 namespace Sample
@@ -20,12 +19,12 @@ namespace Sample
         }
 
         [JSImport("Sample.Test.displayMeaning", "main.js")]
-        internal static partial void DisplayMeaning(string meaning);
+        static partial void DisplayMeaning(string meaning);
 
 #if true
         [JSExport]
         [return: JSMarshalAs<JSType.Promise<JSType.Void>>]
-        private static Task Demo()
+        public static Task Demo()
         {
             GreenThread t = GreenThread.RunAsGreenThread (ThreadMain);
             return t.Task;
@@ -140,19 +139,19 @@ namespace Sample
 
     public class GreenThread {
         public Task Task { get; init; }
-        internal DC.ContinuationHandle<int> CurrentContinuation { get; private set; }
-        internal DC.ContinuationHandle<int> ReturnToSchedulerContinuation {get ; private set; }
+        internal DC.ContinuationHandle CurrentContinuation { get; private set; }
+        internal DC.ContinuationHandle ReturnToSchedulerContinuation {get ; private set; }
 
         // a convenience
-        private static DC.ContinuationHandle<int> ZeroContinuation = default;
+        private static DC.ContinuationHandle ZeroContinuation = default;
 
         private GreenThread (Task completed) { Task = completed; CurrentContinuation = ZeroContinuation; }
 
         public static GreenThread RunAsGreenThread (Action threadFunc) {
             TaskCompletionSource tcs = new ();
             GreenThread t = new (tcs.Task);
-            DC.ContinuationHandle<int> startCont = DC.TransferControl<DC.ContinuationHandle<int>> ((enqueueK) => {
-                int dummy = DC.TransferControl<int> ((beforeCallK) => {
+            DC.ContinuationHandle startCont = DC.TransferControl<DC.ContinuationHandle> ((enqueueK) => {
+                DC.TransferControl ((beforeCallK) => {
                     enqueueK.Resume(beforeCallK);
                 });
                 threadFunc();
@@ -169,13 +168,13 @@ namespace Sample
         {
             var retK = ReturnToSchedulerContinuation;
             ReturnToSchedulerContinuation = ZeroContinuation;
-            retK.Resume (123);
+            retK.Resume ();
         }
-        
-        
+
+
         [InContinuation]
         public void Yield() {
-            DC.TransferControl<int> ((afterYieldK) => {
+            DC.TransferControl ((afterYieldK) => {
                 CurrentContinuation = afterYieldK;
                 Scheduler.Enqueue (this);
                 ReturnToScheduler ();
@@ -184,11 +183,11 @@ namespace Sample
 
         [InContinuation]
         internal void Execute () {
-            DC.TransferControl<int>((returnToSchedulerK) => {
+            DC.TransferControl((returnToSchedulerK) => {
                 var computeK = CurrentContinuation;
                 CurrentContinuation = ZeroContinuation;
                 ReturnToSchedulerContinuation = returnToSchedulerK;
-                computeK.Resume (456);
+                computeK.Resume ();
             });
         }
     }
@@ -208,7 +207,7 @@ namespace Sample
             while (Queue.TryDequeue (out GreenThread green)) {
                 Current = green;
                 Current.Execute();
-                await Task.Delay (1000);
+                await Task.Delay(1000);
             }
         }
 

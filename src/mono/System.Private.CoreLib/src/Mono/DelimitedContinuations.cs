@@ -15,9 +15,6 @@ public static partial class DelimitedContinuations
     // Represents a captured continuation from a top frame accepting a value TCont.
     // If continuations were first class objects, this would just be Action<TCont>.
     // The continuations are one-shot, so they can only be resumed once.
-    // FIXME: this is <forall T>(T=>R) delimited continuations. We at least also need
-    //  void-typed.  Possibly we should just add IntPtr versions and build the rest on top.
-    //
     public struct ContinuationHandle<TCont>
     {
         private readonly IntPtr _value; // this is a pointer into some saved continuation table in the runtime
@@ -28,6 +25,21 @@ public static partial class DelimitedContinuations
         /// abandoned.
         [DoesNotReturn]
         public void Resume (TCont? answer) => ResumeContinuation (Value, (object?)answer);
+    }
+
+    // Represents a captured continuation from a top frame that does not return a value.
+    // If continuations were first class objects, this would just be Action.
+    // The continuations are one-shot, so they can only be resumed once.
+    public struct ContinuationHandle
+    {
+        private readonly IntPtr _value; // this is a pointer into some saved continuation table in the runtime
+        public IntPtr Value { get => _value; init { _value = value; } }
+
+        /// Given an answer to give to the continuation, resumes the continuation by placing it back
+        /// as the active stack. The rest of the current computation following the call to Resume is
+        /// abandoned.
+        [DoesNotReturn]
+        public void Resume() => ResumeContinuation(Value, (object?)null);
     }
 
     public static bool IsSupported {
@@ -73,6 +85,20 @@ public static partial class DelimitedContinuations
             // this doesn't return, but there's no good way to convince Mono of that - adding throw null here confuses the interpreter
         }
         return (T?)answer;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static void TransferControl(Action<ContinuationHandle> continuationConsumer)
+    {
+        object? dummyAnswer = null;
+        IntPtr continuation = IntPtr.Zero;
+        CaptureContinuation(ref continuation, ref dummyAnswer);
+        if (continuation != IntPtr.Zero) {
+            RegisterCapturedContinuation(continuation);
+            continuationConsumer(new ContinuationHandle { Value = continuation });
+            Environment.FailFast("TransferControl continuation consumer must not return!");
+            // this doesn't return, but there's no good way to convince Mono of that - adding throw null here confuses the interpreter
+        }
     }
 
     private static readonly ContinuationAccounting _accounting = new ();
