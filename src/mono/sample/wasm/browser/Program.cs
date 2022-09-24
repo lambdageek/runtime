@@ -220,19 +220,15 @@ namespace Sample
             }
         }
 
-#if false
-        public static async Task Loop()
+        internal static async Task Loop()
         {
             await Task.Delay (1);
             int count = 0;
             while (PumpScheduler(count)) {
                 count ++;
-                DateTime now = DateTime.UtcNow;
-                await Task.Delay(1000);
-                DateTime now2 = DateTime.UtcNow;
+                await Task.Delay(1);
             }
         }
-#endif
 
         public static bool PumpScheduler(int count){
             if (Queue.TryDequeue (out GreenThread green)) {
@@ -256,17 +252,17 @@ namespace Sample
 
         internal static void EnqueueResume (GreenThread work)
         {
+	    // When we're queuing a resume after a yield, we're still in PumpSchedler, so we will
+	    // return to Loop, which will observe the non-empty queue.  Therefore, we don't need to
+	    // run another instance of Loop.
             Queue.Enqueue (work);
         }
 
-        [JSImport("Sample.Scheduler.requestPumping", "main.js")]
-        static partial void RequestPumping();
+        internal static void RequestPumping()
+	{
+	    Task.Run (Loop);
+	}
 
-        [JSExport]
-        static int PumpOnce(int count)
-        {
-            return PumpScheduler(count) ? 1 : 0;
-        }
     }
 
 }
