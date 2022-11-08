@@ -107,9 +107,11 @@ public static partial class DelimitedContinuations
 
     private static bool TryUnregisterCapturedContinuation (IntPtr continuationPtr) => _accounting.Unregister (continuationPtr);
 
+#pragma warning disable IDE0060
     [Intrinsic]
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void CaptureContinuation (ref IntPtr continuationDest, ref object? answerDest) => throw null!;
+#pragma warning restore IDE0060
 
     [DoesNotReturn]
     private static void ResumeContinuation(IntPtr continuation, object? answer)
