@@ -8,19 +8,39 @@ namespace System.Threading
 {
     public static partial class Monitor
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Enter(object obj) => InternalEnter(obj);
+
         [Intrinsic]
         [MethodImplAttribute(MethodImplOptions.InternalCall)] // Interpreter is missing this intrinsic
-        public static void Enter(object obj) => Enter(obj);
+        private static void InternalEnter(object obj) => InternalEnter(obj);
 
-        [Intrinsic]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Enter(object obj, ref bool lockTaken)
         {
-            // TODO: Interpreter is missing this intrinsic
             if (lockTaken)
-                throw new ArgumentException(SR.Argument_MustBeFalse, nameof(lockTaken));
+                ThrowArgumentMustBeFalse(ref lockTaken);
+            ArgumentNullException.ThrowIfNull(obj);
 
-            ReliableEnterTimeout(obj, (int)Timeout.Infinite, ref lockTaken);
+            // fast path
+            if (ObjectHeader.TryEnterFast(obj)) {
+                lockTaken = true;
+                return;
+            }
+
+            InternalEnter(obj, ref lockTaken);
         }
+
+        [Intrinsic]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] // Interpreter is missing this intrinsic
+        private static void InternalEnter(object obj, ref bool lockTaken)
+        {
+            try_enter_with_atomic_var(obj, 0, true, ref lockTaken);
+        }
+
+        #pragma warning disable IDE0060 // Parameter 'lockTaken' can be removed
+        private static void ThrowArgumentMustBeFalse(ref bool lockTaken) => throw new ArgumentException(SR.Argument_MustBeFalse, nameof(lockTaken));
+        #pragma warning restore IDE0060
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void InternalExit(object obj);
@@ -46,7 +66,7 @@ namespace System.Threading
         public static void TryEnter(object obj, ref bool lockTaken)
         {
             if (lockTaken)
-                throw new ArgumentException(SR.Argument_MustBeFalse, nameof(lockTaken));
+                ThrowArgumentMustBeFalse(ref lockTaken);
 
             ReliableEnterTimeout(obj, 0, ref lockTaken);
         }
@@ -62,7 +82,7 @@ namespace System.Threading
         public static void TryEnter(object obj, int millisecondsTimeout, ref bool lockTaken)
         {
             if (lockTaken)
-                throw new ArgumentException(SR.Argument_MustBeFalse, nameof(lockTaken));
+                ThrowArgumentMustBeFalse(ref lockTaken);
 
             ReliableEnterTimeout(obj, millisecondsTimeout, ref lockTaken);
         }

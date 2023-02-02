@@ -1025,11 +1025,11 @@ mini_emit_inst_for_method (MonoCompile *cfg, MonoMethod *cmethod, MonoMethodSign
 		gboolean is_enter = FALSE;
 		gboolean is_v4 = FALSE;
 
-		if (!strcmp (cmethod->name, "Enter") && fsig->param_count == 2 && m_type_is_byref (fsig->params [1])) {
+		if (!strcmp (cmethod->name, "InternalEnter") && fsig->param_count == 2 && m_type_is_byref (fsig->params [1])) {
 			is_enter = TRUE;
 			is_v4 = TRUE;
 		}
-		if (!strcmp (cmethod->name, "Enter") && fsig->param_count == 1)
+		if (!strcmp (cmethod->name, "InternalEnter") && fsig->param_count == 1)
 			is_enter = TRUE;
 
 		if (is_enter) {
