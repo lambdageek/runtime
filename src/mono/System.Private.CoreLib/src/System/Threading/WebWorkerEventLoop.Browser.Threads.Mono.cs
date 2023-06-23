@@ -61,7 +61,7 @@ internal static class WebWorkerEventLoop
     ///   loop it will be able to settle JS promises as well as run any queued managed async
     ///   callbacks.
     /// </summary>
-    internal static void StartExitable(Thread thread, bool captureContext)
+    internal static bool StartExitable(Thread thread, bool captureContext)
     {
         // don't support captureContext == true, for now, since it's
         // not needed by PortableThreadPool.WorkerThread
@@ -71,7 +71,21 @@ internal static class WebWorkerEventLoop
         if (!thread.IsThreadPoolThread)
             throw new InvalidOperationException();
         thread.HasExternalEventLoop = true;
-        thread.UnsafeStart();
+        bool success = true;
+        try
+        {
+                thread.UnsafeStart();
+        }
+        catch (ThreadStartException e)
+        {
+                if (e.InnerException is ExecutionEngineException)
+                {
+                        // assume pthread_create failed due to WASM WebWorker exhaustion
+                        success = false;
+                } else
+                        throw; // some other failure, propagate
+        }
+        return success;
     }
 
     /// returns true if the current thread has unsettled JS Interop promises

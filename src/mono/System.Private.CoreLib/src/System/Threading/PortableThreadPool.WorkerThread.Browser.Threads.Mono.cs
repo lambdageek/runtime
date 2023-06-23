@@ -115,7 +115,34 @@ namespace System.Threading
 
                 // This thread will return to the JS event loop - tell the runtime not to cleanup
                 // after the start function returns, if the Emscripten keepalive is non-zero.
-                WebWorkerEventLoop.StartExitable(workerThread, captureContext: false);
+                bool success = WebWorkerEventLoop.StartExitable(workerThread, captureContext: false);
+                if (!success)
+                {
+                    DecrementThreadPoolCountsForFailedWorkerStart(ThreadPoolInstance);
+                }
+            }
+
+            private static void DecrementThreadPoolCountsForFailedWorkerStart(PortableThreadPool threadPoolInstance)
+            {
+                ThreadCounts counts = threadPoolInstance._separated.counts;
+                while (true)
+                {
+                    // the new worker was registered by MaybeAddWorkingWorker in NumExistingThreads and in NumProcessingWork
+                    // since creating it failed, adjust both numbers down
+
+                    ThreadCounts newCounts = counts;
+                    newCounts.NumProcessingWork--;
+                    newCounts.NumExistingThreads--;
+
+                    ThreadCounts oldCounts = threadPoolInstance._separated.counts.InterlockedCompareExchange(newCounts, counts);
+
+                    if (oldCounts == counts) {
+                        Internal.Console.WriteLine ($">>> Threadpool worker failed to start, decrementing counts (after: existing {newCounts.NumExistingThreads} processing {newCounts.NumProcessingWork})");
+                        break;
+                    }
+
+                    counts = oldCounts;
+                }
             }
         }
     }

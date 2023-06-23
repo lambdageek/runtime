@@ -1,10 +1,12 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+import MonoWasmThreads from "consts:monoWasmThreads";
 import { runtimeHelpers } from "./globals";
 import { mono_log_warn } from "./logging";
 import { GCHandle, GCHandleNull, JSHandle, JSHandleDisposed, JSHandleNull } from "./types/internal";
 import { create_weak_ref } from "./weak-ref";
+import { isLiveMonoPThread } from "./pthreads/shared";
 
 const _use_finalization_registry = typeof globalThis.FinalizationRegistry === "function";
 let _js_owned_object_registry: FinalizationRegistry<any>;
@@ -103,7 +105,9 @@ export function teardown_managed_proxy(result: any, gc_handle: GCHandle): void {
         }
     }
     if (gc_handle !== GCHandleNull && _js_owned_object_table.delete(gc_handle)) {
-        runtimeHelpers.javaScriptExports.release_js_owned_object_by_gc_handle(gc_handle);
+        if (!MonoWasmThreads || isLiveMonoPThread ()) {
+            runtimeHelpers.javaScriptExports.release_js_owned_object_by_gc_handle(gc_handle);
+        }
     }
 }
 

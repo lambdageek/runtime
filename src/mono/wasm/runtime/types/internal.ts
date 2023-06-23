@@ -275,6 +275,7 @@ export type PThreadReplacements = {
     loadWasmModuleToWorker(worker: Worker): Promise<Worker>,
     threadInitTLS: () => void,
     allocateUnusedWorker: () => void,
+    returnWorkerToPool: (worker: Worker) => void,
 }
 
 /// Always throws. Used to handle unreachable switch branches when TypeScript refines the type of a variable

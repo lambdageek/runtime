@@ -11,7 +11,7 @@ try {
         //.withEnvironmentVariable("MONO_LOG_LEVEL", "debug")
         .withDiagnosticTracing(true)
         .withConfig({
-            pthreadPoolSize: 6,
+            pthreadPoolSize: 5,
         })
         .withElementOnExit()
         .withExitCodeLogging()

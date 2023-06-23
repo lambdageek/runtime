@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices.JavaScript;
 using System.Threading;
@@ -39,7 +40,7 @@ namespace Sample
         [JSExport]
         internal static Task TestHelloWebWorker()
         {
-            Console.WriteLine($"smoke: TestHelloWebWorker 1 ManagedThreadId:{Thread.CurrentThread.ManagedThreadId}, SynchronizationContext: {SynchronizationContext.Current?.GetType().FullName ?? "null"}");
+Console.WriteLine($"smoke: TestHelloWebWorker 1 ManagedThreadId:{Thread.CurrentThread.ManagedThreadId}, SynchronizationContext: {SynchronizationContext.Current?.GetType().FullName ?? "null"}");
             Task t= WebWorker.RunAsync(() => 
             {
                 Console.WriteLine($"smoke: TestHelloWebWorker 2 ManagedThreadId:{Thread.CurrentThread.ManagedThreadId}, SynchronizationContext: {SynchronizationContext.Current?.GetType().FullName ?? "null"}");
@@ -82,15 +83,28 @@ namespace Sample
         internal static void StartTimerFromWorker()
         {
             Console.WriteLine("smoke: StartTimerFromWorker 1 utc {0}", DateTime.UtcNow.ToUniversalTime());
-            WebWorker.RunAsync(async () => 
+            try
             {
-                while (!_timerDone)    
-                {
-                    await Task.Delay(1 * 1000);
-                    Console.WriteLine("smoke: StartTimerFromWorker 2 utc {0}", DateTime.UtcNow.ToUniversalTime());
-                }
-                Console.WriteLine("smoke: StartTimerFromWorker done utc {0}", DateTime.UtcNow.ToUniversalTime());
-            });
+                    WebWorker.RunAsync(async () => 
+                    {
+                            int count = 0;
+                            while (!_timerDone)    
+                            {
+                                    await Task.Delay(1 * 1000);
+                                    Console.WriteLine("smoke: StartTimerFromWorker 2 utc {0}", DateTime.UtcNow.ToUniversalTime());
+                                    if (++count > 20) {
+                                        Console.WriteLine ("smoke: StartTimerFromWorker 2 - stopping after 20 iterations at utc {0}", DateTime.UtcNow.ToUniversalTime());
+                                        break;
+                                    }
+                                        
+                            }
+                            Console.WriteLine("smoke: StartTimerFromWorker done utc {0}", DateTime.UtcNow.ToUniversalTime());
+                    });
+            }
+            catch (ThreadStartException ex)
+            {
+                Console.WriteLine ("RunAsync thread start exception: {0}", ex);
+            }
         }
 
         [JSExport]
@@ -124,7 +138,13 @@ namespace Sample
         [JSExport]
         public static async Task TestCallSetTimeoutOnWorker()
         {
-            await WebWorker.RunAsync(() => TimeOutThenComplete());
+            try
+            {
+                await WebWorker.RunAsync(() => TimeOutThenComplete());
+            } catch (ThreadStartException ex)
+            {
+                Console.WriteLine ("SetTimeoutOnWorker thread start exn: {0}", ex);
+            }
             Console.WriteLine ($"XYZ: Main Thread caught task tid:{Thread.CurrentThread.ManagedThreadId}");
         }
 

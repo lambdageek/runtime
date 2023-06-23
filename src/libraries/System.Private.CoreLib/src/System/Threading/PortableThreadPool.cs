@@ -21,7 +21,7 @@ namespace System.Threading
 #if TARGET_64BIT
         private const short DefaultMaxWorkerThreadCount = MaxPossibleThreadCount;
 #elif TARGET_32BIT
-        private const short DefaultMaxWorkerThreadCount = 1023;
+        private const short DefaultMaxWorkerThreadCount = 2;
 #else
         #error Unknown platform
 #endif
@@ -37,8 +37,8 @@ namespace System.Threading
 
         private static readonly short ForcedMinWorkerThreads =
             AppContextConfigHelper.GetInt16Config("System.Threading.ThreadPool.MinThreads", 0, false);
-        private static readonly short ForcedMaxWorkerThreads =
-            AppContextConfigHelper.GetInt16Config("System.Threading.ThreadPool.MaxThreads", 0, false);
+        private const short ForcedMaxWorkerThreads = 2;
+        //            AppContextConfigHelper.GetInt16Config("System.Threading.ThreadPool.MaxThreads", 0, false);
 
         [ThreadStatic]
         private static object? t_completionCountObject;

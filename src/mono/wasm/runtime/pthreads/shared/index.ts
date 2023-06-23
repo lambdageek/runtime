@@ -4,7 +4,7 @@
 import MonoWasmThreads from "consts:monoWasmThreads";
 import BuildConfiguration from "consts:configuration";
 
-import { Module, runtimeHelpers } from "../../globals";
+import { Module, runtimeHelpers, ENVIRONMENT_IS_PTHREAD } from "../../globals";
 import { MonoConfig } from "../../types";
 import { pthreadPtr } from "./types";
 import { mono_log_debug } from "../../logging";
@@ -183,4 +183,13 @@ export function set_thread_info(pthread_ptr: number, isAttached: boolean, hasInt
             runtimeHelpers.cspPolicy = true;
         }
     }
+}
+
+export function isLiveMonoPThread(): boolean
+{
+    if (!MonoWasmThreads)
+        return true;
+    if (!ENVIRONMENT_IS_PTHREAD)
+        return true; // assume main thread is always attached
+    return <any>pthread_self !== null; // detaching the thread from Mono will unset pthread_self
 }

@@ -6,6 +6,7 @@ import { isThenable } from "./cancelable-promise";
 import cwraps from "./cwraps";
 import { assert_not_disposed, cs_owned_js_handle_symbol, js_owned_gc_handle_symbol, mono_wasm_get_js_handle, setup_managed_proxy, teardown_managed_proxy } from "./gc-handles";
 import { Module, runtimeHelpers } from "./globals";
+import { mono_log_debug } from "./logging";
 import {
     ManagedError,
     set_gc_handle, set_js_handle, set_arg_type, set_arg_i32, set_arg_f64, set_arg_i52, set_arg_f32, set_arg_i16, set_arg_u8, set_arg_b8, set_arg_date,
@@ -19,6 +20,7 @@ import { _zero_region, localHeapViewF64, localHeapViewI32, localHeapViewU8 } fro
 import { stringToMonoStringRoot } from "./strings";
 import { GCHandle, GCHandleNull, JSMarshalerArgument, JSMarshalerArguments, JSMarshalerType, MarshalerToCs, MarshalerToJs, BoundMarshalerToCs, MarshalerType } from "./types/internal";
 import { TypedArray } from "./types/emscripten";
+import { isLiveMonoPThread } from "./pthreads/shared";
 import { addUnsettledPromise, settleUnsettledPromise } from "./pthreads/shared/eventloop";
 
 
@@ -313,13 +315,25 @@ function _marshal_task_to_cs(arg: JSMarshalerArgument, value: Promise<any>, _?: 
         addUnsettledPromise();
 
     value.then(data => {
-        if (MonoWasmThreads)
+        if (MonoWasmThreads) {
             settleUnsettledPromise();
+            if (!isLiveMonoPThread()) {
+                mono_log_debug ("not running continuation of marshaled task after pthread detached");
+                teardown_managed_proxy(holder, gc_handle);
+                return;
+            }
+        }
         runtimeHelpers.javaScriptExports.complete_task(gc_handle, null, data, res_converter || _marshal_cs_object_to_cs);
         teardown_managed_proxy(holder, gc_handle); // this holds holder alive for finalizer, until the promise is freed, (holding promise instead would not work)
     }).catch(reason => {
-        if (MonoWasmThreads)
+        if (MonoWasmThreads) {
             settleUnsettledPromise();
+            if (!isLiveMonoPThread()) {
+                mono_log_debug ("not running exception continuation of marshaled task after pthread detached");
+                teardown_managed_proxy(holder, gc_handle);
+                return;
+            }
+        }
         runtimeHelpers.javaScriptExports.complete_task(gc_handle, reason, null, undefined);
         teardown_managed_proxy(holder, gc_handle); // this holds holder alive for finalizer, until the promise is freed
     });

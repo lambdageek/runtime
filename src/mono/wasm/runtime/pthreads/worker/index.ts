@@ -79,6 +79,21 @@ function setupChannelToMainThread(pthread_ptr: pthreadPtr): PThreadSelf {
 }
 
 
+let heartbeatIntervalId = 0;
+
+function installHeartbeat(pthread_id: number) {
+    mono_assert (heartbeatIntervalId == 0, "expected no heartbeat on worker");
+    const pthreadName = "0x" + pthread_id.toString(16);
+    heartbeatIntervalId = setInterval (() => {
+        mono_log_debug(`pthread ${pthreadName} is alive`);
+    }, 2000);
+}
+
+function uninstallHeartbeat() {
+    clearInterval(heartbeatIntervalId);
+    heartbeatIntervalId = 0;
+}
+
 /// This is an implementation detail function.
 /// Called in the worker thread (not main thread) from mono when a pthread becomes attached to the mono runtime.
 export function mono_wasm_pthread_on_pthread_attached(pthread_id: number): void {
@@ -89,13 +104,16 @@ export function mono_wasm_pthread_on_pthread_attached(pthread_id: number): void 
     preRunWorker();
     set_thread_info(pthread_id, true, false, false);
     currentWorkerThreadEvents.dispatchEvent(makeWorkerThreadEvent(dotnetPthreadAttached, self));
+    installHeartbeat(pthread_id);
 }
 
 /// Called in the worker thread (not main thread) from mono when a pthread becomes detached from the mono runtime.
 export function mono_wasm_pthread_on_pthread_detached(pthread_id: number): void {
     mono_log_debug("detaching pthread from mono runtime 0x" + pthread_id.toString(16));
+    uninstallHeartbeat();
     set_thread_info(pthread_id, false, false, false);
     mono_set_thread_id("");
+    pthread_self = null as any as PThreadSelf; // FIXME: should we make pthread_self nullable?
 }
 
 /// This is an implementation detail function.

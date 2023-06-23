@@ -25,6 +25,7 @@ function setup(linkerSetup) {
     pthreadReplacements.loadWasmModuleToWorker = PThread.loadWasmModuleToWorker;
     pthreadReplacements.threadInitTLS = PThread.threadInitTLS;
     pthreadReplacements.allocateUnusedWorker = PThread.allocateUnusedWorker;
+    pthreadReplacements.returnWorkerToPool = PThread.returnWorkerToPool;
     #else
     const ENVIRONMENT_IS_PTHREAD = false;
     #endif
@@ -56,6 +57,7 @@ function setup(linkerSetup) {
     PThread.loadWasmModuleToWorker = pthreadReplacements.loadWasmModuleToWorker;
     PThread.threadInitTLS = pthreadReplacements.threadInitTLS;
     PThread.allocateUnusedWorker = pthreadReplacements.allocateUnusedWorker;
+    PThread.returnWorkerToPool = pthreadReplacements.returnWorkerToPool;
     #endif
 }
 

@@ -7,6 +7,9 @@
 #include <emscripten/threading.h>
 #endif
 
+// #define LIFO_ASYNC_DEBUG(stmt) do { /* empty */ } while (0)
+#define LIFO_ASYNC_DEBUG(stmt) do { stmt; } while (0)
+
 LifoSemaphore *
 mono_lifo_semaphore_init (void)
 {
@@ -217,6 +220,7 @@ mono_lifo_semaphore_asyncwait_prepare_wait (LifoSemaphoreAsyncWait *sem,
 	wait_entry->js_timeout_id = emscripten_set_timeout (lifo_js_wait_entry_on_timeout, (double)timeout_ms, wait_entry);
 	lifo_js_wait_entry_push (&sem->head, wait_entry);
 	mono_coop_mutex_unlock (&sem->base.mutex);
+	LIFO_ASYNC_DEBUG(g_async_safe_printf("waiting (we = %p) on async semaphore for %d ms in %p\n", (void*)wait_entry, timeout_ms, (void*)(intptr_t)cur));
 	return;
 }
 
@@ -253,6 +257,7 @@ lifo_js_wait_entry_on_timeout (void *wait_entry_as_user_data)
 	LifoSemaphoreAsyncWaitWaitEntry *wait_entry = (LifoSemaphoreAsyncWaitWaitEntry *)wait_entry_as_user_data;
 	g_assert (pthread_equal (wait_entry->thread, pthread_self()));
 	g_assert (wait_entry->sem != NULL);
+	LIFO_ASYNC_DEBUG(g_async_safe_printf("lifo async semaphore timed out (we = %p) on %p\n", (void*)wait_entry, (void*)(intptr_t)pthread_self()));
 	LifoSemaphoreAsyncWait *sem = wait_entry->sem;
 	gboolean call_timeout_cb = FALSE;
 	LifoSemaphoreAsyncWaitCallbackFn timeout_cb = NULL;
@@ -292,6 +297,7 @@ static void
 lifo_js_wait_entry_on_success (void *wait_entry_as_user_data)
 {
 	LifoSemaphoreAsyncWaitWaitEntry *wait_entry = (LifoSemaphoreAsyncWaitWaitEntry *)wait_entry_as_user_data;
+	LIFO_ASYNC_DEBUG(g_async_safe_printf("lifo async semaphore released (we = %p) on %p\n", (void*)wait_entry, (void*)(intptr_t)pthread_self()));
 	g_assert (pthread_equal (wait_entry->thread, pthread_self()));
 	g_assert (wait_entry->sem != NULL);
 	LifoSemaphoreAsyncWait *sem = wait_entry->sem;

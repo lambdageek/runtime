@@ -23,6 +23,7 @@ namespace System.Runtime.InteropServices.JavaScript
             var capturedContext = SynchronizationContext.Current;
             var t = new Thread(() =>
             {
+                bool installedInterop = false;
                 try
                 {
                     if (cancellationToken.IsCancellationRequested)
@@ -32,6 +33,7 @@ namespace System.Runtime.InteropServices.JavaScript
                     }
 
                     JSHostImplementation.InstallWebWorkerInterop(true);
+                    installedInterop = true;
                     var childScheduler = TaskScheduler.FromCurrentSynchronizationContext();
                     Task<T> res = body();
                     // This code is exiting thread main() before all promises are resolved.
@@ -40,16 +42,26 @@ namespace System.Runtime.InteropServices.JavaScript
                     {
                         PostWhenDone(parentContext, tcs, res);
                         JSHostImplementation.UninstallWebWorkerInterop();
+                        installedInterop = false;
                     }, childScheduler);
                 }
                 catch (Exception e)
                 {
+                    if (installedInterop) {
+                        JSHostImplementation.UninstallWebWorkerInterop();
+                        installedInterop = false;
+                    }
                     Environment.FailFast("WebWorker.RunAsync failed", e);
                 }
-
             });
             JSHostImplementation.SetHasExternalEventLoop(t);
-            t.Start();
+            try
+            {
+                t.Start();
+            } catch (ThreadStartException ex)
+            {
+                tcs.SetException (ex);
+            }
             return tcs.Task;
         }
 
@@ -86,7 +98,14 @@ namespace System.Runtime.InteropServices.JavaScript
 
             });
             JSHostImplementation.SetHasExternalEventLoop(t);
-            t.Start();
+            try
+            {
+                t.Start();
+            }
+            catch (ThreadStartException ex)
+            {
+                tcs.SetException(ex);
+            }
             return tcs.Task;
         }
 
@@ -124,7 +143,14 @@ namespace System.Runtime.InteropServices.JavaScript
 
             });
             JSHostImplementation.SetHasExternalEventLoop(t);
-            t.Start();
+            try
+            {
+                t.Start();
+            }
+            catch (ThreadStartException ex)
+            {
+                tcs.SetException(ex);
+            }
             return tcs.Task;
         }
 
