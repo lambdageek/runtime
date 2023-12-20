@@ -553,9 +553,6 @@ mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, M
 			MonoGenericContainer *generic_container = mono_metadata_load_generic_params (image, klass->type_token, NULL, klass);
 			context = &generic_container->context;
 			mono_class_set_generic_container (klass, generic_container);
-			MonoType *canonical_inst = &((MonoClassGtd*)klass)->canonical_inst;
-			canonical_inst->type = MONO_TYPE_GENERICINST;
-			canonical_inst->data.generic_class = mono_metadata_lookup_generic_class (klass, context->class_inst, FALSE);
 		}
 	} else if (mono_class_is_gtd (klass)) {
 		MonoGenericContainer *generic_container = mono_class_get_generic_container (klass);
@@ -592,7 +589,13 @@ mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, M
 
 	if (mono_class_is_gtd (klass)) {
 		enable_gclass_recording ();
+
+		MonoType *canonical_inst = &((MonoClassGtd*)klass)->canonical_inst;
+		canonical_inst->type = MONO_TYPE_GENERICINST;
+		// this wants the loader lock because the underlying cache for mono_metadat_lookup_generic_class may sometimes trigger custom mod loading.  See https://github.com/dotnet/runtime/pull/91190
+		canonical_inst->data.generic_class = mono_metadata_lookup_generic_class (klass, context->class_inst, FALSE);
 	}
+
 
 	/* we have to set the ready level to EXACT_PARENT relatively early while still holding the
 	 * loader lock so that certain recursive uses will bail at the EXACT_PARENT check early
@@ -1860,7 +1863,7 @@ mono_class_create_fnptr_at_level (MonoMethodSignature *sig, MonoClassReady max_r
 
 	if (max_ready_level == MONO_CLASS_READY_BAREBONES)
 		return result;
-	
+
 	mono_class_preload_class (result);
 	g_assert (m_class_ready_level_at_least (result, MONO_CLASS_READY_APPROX_PARENT));
 
@@ -1875,13 +1878,13 @@ mono_class_create_fnptr_at_level (MonoMethodSignature *sig, MonoClassReady max_r
 		mono_loader_unlock ();
 		return result;
 	}
-		
+
 	MONO_PROFILER_RAISE (class_loading, (result));
 
 	// could be EXACT_PARENT, but fnptr types are actually fully inited at this point, there's
 	// no work for mono_class_init_internal to do.
 	m_class_set_ready_level_at_least (result, MONO_CLASS_READY_INITED);
-	
+
 	UnlockedAdd (&classes_size, sizeof (MonoClassPointer));
 	++class_pointer_count;
 

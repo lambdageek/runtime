@@ -607,6 +607,7 @@ preload_visit_mono_type (MonoType *ty)
 		for (unsigned int i = 0; i < count; i++) {
 			ERROR_DECL (cmod_error);
 			gboolean required = FALSE;
+			// NOTE: this can trigger assembly loading, see https://github.com/dotnet/runtime/pull/91190
 			MonoType *cmod = mono_type_get_custom_modifier (ty, i, &required, cmod_error);
 			if (!is_ok (cmod_error)) {
 				mono_error_cleanup (cmod_error);

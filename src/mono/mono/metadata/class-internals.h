@@ -274,6 +274,27 @@ typedef enum {
 	MONO_CLASS_GC_FILLER = 0xAC /* not a real class kind - used for sgen nursery filler arrays */
 } MonoTypeKind;
 
+/* Class Loader Readiness levels
+ *
+ * Because there can be cycles in class hierarchies (due to generics or due to bad IL), the creation
+ * of a MonoClass (for example during parsing of a typespec blob) sometimes has to allocate a
+ * MonoClass without fully initializing it.  In particular, some parts of the initialization require
+ * taking the global loader lock.
+ *
+ * We would like to not hold the loader lock when assembly loadnig might be triggered.  Assembly
+ * loading may need to call into managed code (to resolve assembly references, or to notify managed
+ * code that an assembly has been loaded).  We would like to avoid calling managed code while
+ * holding the loader lock.
+ *
+ * Therefore, we separate class initialization into several levels.  Initially a MonoClass is
+ * allocated at the BAREBONES readiness level, taking only low-level locks that protect class
+ * caches.  Then, without locking, we preload all the assemblies that the class depends on and put
+ * the class into the APPROX_PARENT level.  Then we take the loader lock and traverse the whole
+ * ancestor and interface hierarchy (detecting cycles).  Because all the assemblies are preloaded,
+ * we stay in native code during this process.  After we're done the class is at the EXACT_PARENT
+ * level.  Finally, if someone calls `mono_class_init_internal`, we put the class into the INITED
+ * state by initializing the rest of the MonoClass.
+ */
 typedef enum {
 	/* MonoClass is alocated, but not inited. image, type_token, namespace and name are usable.
 	 */
