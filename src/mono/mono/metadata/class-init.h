@@ -71,10 +71,10 @@ MONO_COMPONENT_API void
 mono_class_setup_vtable (MonoClass *klass);
 
 void
-mono_class_setup_parent    (MonoClass *klass, MonoClass *parent);
+mono_class_setup_parent    (MonoClass *klass, MonoClass *parent, gboolean approx);
 
 void
-mono_class_setup_mono_type (MonoClass *klass);
+mono_class_setup_mono_type (MonoClass *klass, gboolean approx);
 
 void
 mono_class_setup_has_finalizer (MonoClass *klass);

@@ -784,6 +784,7 @@ inflate_generic_type (MonoImage *image, MonoType *type, MonoGenericContext *cont
 	}
 	case MONO_TYPE_SZARRAY: {
 		MonoClass *eclass = type->data.klass;
+		// FIXME: preload - we might not have byval_arg is set for a barebones type
 		MonoType *nt, *inflated = inflate_generic_type (NULL, m_class_get_byval_arg (eclass), context, error);
 		if ((!inflated && !changed) || !is_ok (error))
 			return NULL;

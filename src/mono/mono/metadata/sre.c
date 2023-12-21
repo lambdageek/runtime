@@ -2486,15 +2486,15 @@ reflection_setup_class_hierarchy (GHashTable *unparented, MonoError *error)
 			child_class->parent = NULL;
 			/* fool mono_class_setup_parent */
 			child_class->supertypes = NULL;
-			mono_class_setup_parent (child_class, parent_class);
+			mono_class_setup_parent (child_class, parent_class, FALSE);
 		} else if (strcmp (child_class->name, "Object") == 0 && strcmp (child_class->name_space, "System") == 0) {
 			const char *old_n = child_class->name;
 			/* trick to get relative numbering right when compiling corlib */
 			child_class->name = "BuildingObject";
-			mono_class_setup_parent (child_class, mono_defaults.object_class);
+			mono_class_setup_parent (child_class, mono_defaults.object_class, FALSE);
 			child_class->name = old_n;
 		}
-		mono_class_setup_mono_type (child_class);
+		mono_class_setup_mono_type (child_class, FALSE);
 		mono_class_setup_supertypes (child_class);
 	}
 
@@ -2591,7 +2591,7 @@ reflection_setup_internal_class_internal (MonoReflectionTypeBuilderHandle ref_tb
 		mono_class_setup_vtable_general (klass, NULL, 0, NULL);
 	}
 
-	mono_class_setup_mono_type (klass);
+	mono_class_setup_mono_type (klass, FALSE);
 
 	/*
 	 * FIXME: handle interfaces.
@@ -3249,7 +3249,7 @@ fix_partial_generic_class (MonoClass *klass, MonoError *error)
 			if (parent != klass->parent) {
 				/*fool mono_class_setup_parent*/
 				klass->supertypes = NULL;
-				mono_class_setup_parent (klass, parent);
+				mono_class_setup_parent (klass, parent, FALSE);
 			}
 		} else {
 			if (gklass->wastypebuilder)
@@ -3804,11 +3804,11 @@ ves_icall_TypeBuilder_create_runtime_class (MonoReflectionTypeBuilderHandle ref_
 	mono_class_set_flags (klass, MONO_HANDLE_GETVAL (ref_tb, attrs));
 	klass->has_cctor = 1;
 
-	mono_class_setup_parent (klass, klass->parent);
+	mono_class_setup_parent (klass, klass->parent, FALSE);
 	/* fool mono_class_setup_supertypes */
 	klass->supertypes = NULL;
 	mono_class_setup_supertypes (klass);
-	mono_class_setup_mono_type (klass);
+	mono_class_setup_mono_type (klass, FALSE);
 
 	/* Check if the type is marked as byreflike.
 	 * The IsByRefLike attribute only applies to value types and enums. This matches CoreCLR behavior.

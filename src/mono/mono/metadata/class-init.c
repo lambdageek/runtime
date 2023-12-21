@@ -566,11 +566,39 @@ mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, M
 
 	if (m_class_ready_level_at_least (klass, max_ready_level))
 		return klass;
+
 	/*
 	 * At this point class is in the barebones state, at least.  Run the preloading code to
          * trigger all the assembly loading up front, without holding any locks.
 	 */ 
+
+	/* first set the approximate parent (in particular we need ->valuetype to set the approximate byval_arg for the current class) */
+
+	MonoClass *approx_parent = NULL;
+	if (cols [MONO_TYPEDEF_EXTENDS]) {
+		guint32 parent_token = mono_metadata_token_from_dor (cols [MONO_TYPEDEF_EXTENDS]);
+
+		// This is a very suspicious thing to do this early...
+#if 0
+		if (mono_metadata_token_table (parent_token) == MONO_TABLE_TYPESPEC) {
+			/*WARNING: this must satisfy mono_metadata_type_hash*/
+			klass->this_arg.byref__ = 1;
+			klass->this_arg.data.klass = klass;
+			klass->this_arg.type = MONO_TYPE_CLASS;
+			klass->_byval_arg.data.klass = klass;
+			klass->_byval_arg.type = MONO_TYPE_CLASS;
+		}
+#endif
+
+
+		// note: this is not inflated to the correct type
+		approx_parent = mono_class_get_at_ready_level (image, parent_token, MONO_CLASS_READY_BAREBONES, error);
+	}
+
+	mono_class_setup_parent (klass, approx_parent, TRUE);
+	mono_class_setup_mono_type (klass, TRUE);
 	mono_class_preload_class (klass);
+
 
 	if (m_class_ready_level_at_least (klass, max_ready_level))
 		return klass;
@@ -611,6 +639,8 @@ mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, M
 		MonoClass *tmp;
 		guint32 parent_token = mono_metadata_token_from_dor (cols [MONO_TYPEDEF_EXTENDS]);
 
+// FIXME: preload: this shouldn't be necessary anymore? we already set the approx mono_type, above
+#if 0
 		if (mono_metadata_token_table (parent_token) == MONO_TABLE_TYPESPEC) {
 			/*WARNING: this must satisfy mono_metadata_type_hash*/
 			klass->this_arg.byref__ = 1;
@@ -619,7 +649,7 @@ mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, M
 			klass->_byval_arg.data.klass = klass;
 			klass->_byval_arg.type = MONO_TYPE_CLASS;
 		}
-
+#endif
 
 		parent = mono_class_get_checked (image, parent_token, error);
 		if (parent && context) /* Always inflate */
@@ -642,10 +672,10 @@ mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, M
 		}
 	}
 
-	mono_class_setup_parent (klass, parent);
+	mono_class_setup_parent (klass, parent, FALSE);
 
 	/* uses ->valuetype, which is initialized by mono_class_setup_parent above */
-	mono_class_setup_mono_type (klass);
+	mono_class_setup_mono_type (klass, FALSE);
 
 	if (mono_class_is_gtd (klass))
 		disable_gclass_recording (fix_gclass_incomplete_instantiation, klass);
@@ -832,7 +862,7 @@ parent_failure:
 	if (mono_class_is_gtd (klass))
 		disable_gclass_recording (discard_gclass_due_to_failure, klass);
 
-	mono_class_setup_mono_type (klass);
+	mono_class_setup_mono_type (klass, FALSE);
 	m_class_set_ready_level_at_least (klass, MONO_CLASS_READY_EXACT_PARENT);
 	mono_loader_unlock ();
 	MONO_PROFILER_RAISE (class_failed, (klass));
@@ -857,7 +887,7 @@ mono_generic_class_setup_parent (MonoClass *klass, MonoClass *gtd)
 	}
 	mono_loader_lock ();
 	if (klass->parent)
-		mono_class_setup_parent (klass, klass->parent);
+		mono_class_setup_parent (klass, klass->parent, FALSE);
 
 	if (klass->enumtype) {
 		klass->cast_class = gtd->cast_class;
@@ -1742,6 +1772,7 @@ mono_class_create_ptr_at_level (MonoType *type, MonoClassReady max_ready_level)
 		result->element_class = el_class;
 		result->blittable = TRUE;
 		result->this_arg.type = result->_byval_arg.type = MONO_TYPE_PTR;
+		// FIXME: preload: el_class byval_arg may not be set yet
 		result->this_arg.data.type = result->_byval_arg.data.type = m_class_get_byval_arg (el_class);
 		result->this_arg.byref__ = TRUE;
 
@@ -3487,7 +3518,7 @@ init_com_from_comimport (MonoClass *klass)
  * LOCKING: this assumes the loader lock is held
  */
 void
-mono_class_setup_parent (MonoClass *klass, MonoClass *parent)
+mono_class_setup_parent (MonoClass *klass, MonoClass *parent, gboolean approx)
 {
 	gboolean system_namespace;
 	gboolean is_corlib = mono_is_corlib_image (klass->image);
@@ -3522,7 +3553,8 @@ mono_class_setup_parent (MonoClass *klass, MonoClass *parent)
 			g_assert (parent);
 		}
 
-		klass->parent = parent;
+		if (!approx)
+			klass->parent = parent;
 
 		if (mono_class_is_ginst (parent) && !parent->name) {
 			/*
@@ -3543,10 +3575,10 @@ mono_class_setup_parent (MonoClass *klass, MonoClass *parent)
 				klass->delegate  = 1;
 		}
 
-		if (klass->parent->enumtype || (mono_is_corlib_image (klass->parent->image) && (strcmp (klass->parent->name, "ValueType") == 0) &&
-						(strcmp (klass->parent->name_space, "System") == 0)))
+		if (parent->enumtype || (mono_is_corlib_image (parent->image) && (strcmp (parent->name, "ValueType") == 0) &&
+						(strcmp (parent->name_space, "System") == 0)))
 			klass->valuetype = 1;
-		if (mono_is_corlib_image (klass->parent->image) && ((strcmp (klass->parent->name, "Enum") == 0) && (strcmp (klass->parent->name_space, "System") == 0))) {
+		if (mono_is_corlib_image (parent->image) && ((strcmp (parent->name, "Enum") == 0) && (strcmp (parent->name_space, "System") == 0))) {
 			klass->valuetype = klass->enumtype = 1;
 		}
 		/*klass->enumtype = klass->parent->enumtype; */
@@ -3589,7 +3621,7 @@ mono_class_setup_interface_id_nolock (MonoClass *klass)
  * LOCKING: this assumes the loader lock is held
  */
 void
-mono_class_setup_mono_type (MonoClass *klass)
+mono_class_setup_mono_type (MonoClass *klass, gboolean approx)
 {
 	const char *name = klass->name;
 	const char *nspace = klass->name_space;
@@ -3709,7 +3741,8 @@ mono_class_setup_mono_type (MonoClass *klass)
 		klass->this_arg.type = (MonoTypeEnum)t;
 	}
 
-	mono_class_setup_interface_id_nolock (klass);
+	if (!approx)
+		mono_class_setup_interface_id_nolock (klass);
 }
 
 static MonoMethod*
