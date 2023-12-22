@@ -506,11 +506,21 @@ mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, M
 		return NULL;
 	}
 
+	barebones_indent();
+	printf("Creating typedef 0x%08x\n", type_token);
+
 	mono_image_lock (image);
 
 	gboolean allocate_class = TRUE;
 	if ((klass = (MonoClass *)mono_internal_hash_table_lookup (&image->class_cache, GUINT_TO_POINTER (type_token)))) {
-		if (m_class_ready_level_at_least (klass, MONO_CLASS_READY_EXACT_PARENT)) {
+		barebones_indent();
+		printf(". Creating typedef 0x%08x -> (cached) %p\n", type_token, klass);
+
+		if (m_class_ready_level_at_least (klass, max_ready_level)) {
+			barebones_indent();
+			printf(". Returning typedef 0x%08x -> (cached) %p", type_token, klass);
+			barebones_printf_class (klass);
+
 			mono_image_unlock (image);
 			return klass;
 		}
@@ -535,6 +545,9 @@ mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, M
 			UnlockedAdd (&classes_size, sizeof (MonoClassDef));
 			++class_def_count;
 		}
+		barebones_indent();
+		printf(". Creating typedef 0x%08x -> allocated %p\n", type_token, klass);
+
 	}
 	g_assert (klass);
 
@@ -559,27 +572,15 @@ mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, M
 		context = &generic_container->context;
 	}
 
-	if (allocate_class)
-		mono_internal_hash_table_insert (&image->class_cache, GUINT_TO_POINTER (type_token), klass);
-
-	mono_image_unlock(image);
-
-	if (m_class_ready_level_at_least (klass, max_ready_level))
-		return klass;
-
-	/*
-	 * At this point class is in the barebones state, at least.  Run the preloading code to
-         * trigger all the assembly loading up front, without holding any locks.
-	 */ 
-
-	/* first set the approximate parent (in particular we need ->valuetype to set the approximate byval_arg for the current class) */
-
-	MonoClass *approx_parent = NULL;
-	if (cols [MONO_TYPEDEF_EXTENDS]) {
+	if (allocate_class && cols [MONO_TYPEDEF_EXTENDS]) {
+		// XXX: actually - this doesn't work - still stack a overflow
+		// HACK: set some very rough approximation for byval_arg in order to make
+		// approx_parent = mono_class_get_at_ready_level (...) not loop, below for parent
+		// classes that mention the current class. (for example: class Child : Parent<Child>)
+		//
+		// we want to do this only once when the class is allocated - we don't want to overwrite
+		// good info with these lies
 		guint32 parent_token = mono_metadata_token_from_dor (cols [MONO_TYPEDEF_EXTENDS]);
-
-		// This is a very suspicious thing to do this early...
-#if 0
 		if (mono_metadata_token_table (parent_token) == MONO_TABLE_TYPESPEC) {
 			/*WARNING: this must satisfy mono_metadata_type_hash*/
 			klass->this_arg.byref__ = 1;
@@ -588,21 +589,54 @@ mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, M
 			klass->_byval_arg.data.klass = klass;
 			klass->_byval_arg.type = MONO_TYPE_CLASS;
 		}
-#endif
+		
+	}
 
+	barebones_indent();
+	printf(". Creating typedef 0x%08x -> %p is ", type_token, klass);
+	barebones_printf_class (klass);
+
+	if (allocate_class)
+		mono_internal_hash_table_insert (&image->class_cache, GUINT_TO_POINTER (type_token), klass);
+
+	mono_image_unlock(image);
+
+	barebones_push();
+	// FIXME: preload: we're outside the image lock, so multiple threas can get here, 
+	// it's important that we only assign values to fields that won't change.
+	MonoClass *approx_parent = NULL;
+	if (cols [MONO_TYPEDEF_EXTENDS]) {
+		guint32 parent_token = mono_metadata_token_from_dor (cols [MONO_TYPEDEF_EXTENDS]);
 
 		// note: this is not inflated to the correct type
 		approx_parent = mono_class_get_at_ready_level (image, parent_token, MONO_CLASS_READY_BAREBONES, error);
 	}
-
+	barebones_pop();
+	
 	mono_class_setup_parent (klass, approx_parent, TRUE);
 	mono_class_setup_mono_type (klass, TRUE);
-	mono_class_preload_class (klass);
+	if (m_class_ready_level_at_least (klass, max_ready_level))
+		return klass;
 
+	barebones_push();
+	/*
+	 * At this point class is in the barebones state, at least.  Run the preloading code to
+         * trigger all the assembly loading up front, without holding any locks.
+	 */ 
+
+	/* first set the approximate parent (in particular we need ->valuetype to set the approximate byval_arg for the current class) */
+
+	mono_class_preload_class (klass);
+	barebones_pop();
 
 	if (m_class_ready_level_at_least (klass, max_ready_level))
 		return klass;
 
+	barebones_push();
+	barebones_indent();
+	printf (". Typedef 0x%08x -> %p - doing exact parent for ", type_token, klass);
+	barebones_printf_class (klass);
+	barebones_push();
 	mono_loader_lock();
 
 	/* after we take the global loader lock, we're the only ones responsible for initializing this class to the EXACT_PARENT stage. */
@@ -610,6 +644,11 @@ mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, M
 
 	/* maybe it's already done? */
 	if (m_class_ready_level_at_least (klass, MONO_CLASS_READY_EXACT_PARENT)) {
+		barebones_pop();
+		barebones_indent();
+ 		printf (". Typedef 0x%08x -> %p - returning cached exact parent", type_token, klass);
+		barebones_printf_class (klass);
+		barebones_pop();
 		mono_loader_unlock ();
 		return klass;
 	}
@@ -651,14 +690,21 @@ mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, M
 		}
 #endif
 
+		barebones_indent (); printf(". Getting exact parent of ");
+		barebones_printf_class (klass);
+		
 		parent = mono_class_get_checked (image, parent_token, error);
 		if (parent && context) /* Always inflate */
 			parent = mono_class_inflate_generic_class_checked (parent, context, error);
 
+		barebones_indent (); printf (". Got exact parent of ");
+		barebones_printf_class (klass);
 		if (parent == NULL) {
 			mono_class_set_type_load_failure (klass, "%s", mono_error_get_message (error));
 			goto parent_failure;
 		}
+		barebones_indent (); printf (". Exact parent is ");
+		barebones_printf_class (parent);
 
 		for (tmp = parent; tmp; tmp = tmp->parent) {
 			if (tmp == klass) {
@@ -745,14 +791,25 @@ mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, M
 	}
 
 	if (!klass->enumtype) {
+		// FIXME: preload: XXX - preloading asserts in here that we need to preload an interface while holding the loader lock, while initializing System.Boolean
+		// XXX - somehow we got a different instantiation than what preloading saw
+		barebones_indent(); printf (". Getting exact interfaces of ");
+		barebones_printf_class (klass);
+
+		barebones_push();
 		if (!mono_metadata_interfaces_from_typedef_full (
 			    image, type_token, &interfaces, &icount, FALSE, context, error)){
 
+			barebones_pop();
 			mono_class_set_type_load_failure (klass, "%s", mono_error_get_message (error));
 			mono_loader_unlock ();
 			MONO_PROFILER_RAISE (class_failed, (klass));
 			return NULL;
 		}
+		barebones_pop();
+
+		barebones_indent(); printf (". Finished exact interfaces of ");
+		barebones_printf_class (klass);
 
 		/* This is required now that it is possible for more than 2^16 interfaces to exist. */
 		g_assert(icount <= 65535);
@@ -851,6 +908,12 @@ mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, M
 			klass->inlinearray_value = GPOINTER_TO_INT32 (attr.value);
 		}
 	}
+
+	barebones_pop();
+	barebones_indent();
+ 	printf (". Typedef 0x%08x -> %p - exact parent DONE ", type_token, klass);
+	barebones_printf_class (klass);
+	barebones_pop();
 
 	mono_loader_unlock ();
 
@@ -1019,21 +1082,33 @@ mono_class_create_generic_inst (MonoGenericClass *gclass)
 MonoClass*
 mono_class_create_generic_inst_at_level (MonoGenericClass *gclass, MonoClassReady max_ready_level)
 {
+	barebones_indent();
+	printf ("Creating ginst for generic_class(%p) [%d]\n", gclass, max_ready_level);
+
 	MonoClass *klass = NULL;
 	gboolean allocate_class = TRUE;
 
 	if (gclass->cached_class) {
 		klass = gclass->cached_class;
+		barebones_indent();
+		printf (".. Found cached generic_class(%p)[%d] -> %p\n", gclass, max_ready_level, klass);
+
 		allocate_class = FALSE;
-		if (m_class_ready_level_at_least (klass, max_ready_level))
+		if (m_class_ready_level_at_least (klass, max_ready_level)) {
+			barebones_indent();
+			printf ("... Ready enough (%d)\n", *m_class_ready_level_addr(klass));
 			return klass;
+		}
 	}
 
 	MonoMemoryManager *memory_manager = (MonoMemoryManager*)gclass->owner;
 
-	if (allocate_class)
-		klass = (MonoClass *)mono_mem_manager_alloc0 (memory_manager, sizeof (MonoClassGenericInst));
 
+	if (allocate_class) {
+		klass = (MonoClass *)mono_mem_manager_alloc0 (memory_manager, sizeof (MonoClassGenericInst));
+		barebones_indent();
+		printf (".. Allocated generic_class(%p)[%d] -> %p\n", gclass, max_ready_level, klass);
+	}
 	MonoClass *gklass = gclass->container_class;
 
 	if (gklass->nested_in) {
@@ -1070,22 +1145,45 @@ mono_class_create_generic_inst_at_level (MonoGenericClass *gclass, MonoClassRead
 
 	/* from this point on, klass is possibly shared */
 
+	barebones_indent();
+	printf (".. Barebones inited - cached generic_class(%p)[%d] -> %p -> ", gclass, max_ready_level, klass);
+	barebones_printf_class (klass);
+
+
 	if (max_ready_level == MONO_CLASS_READY_BAREBONES) {
 		return klass;
 	}
 	
+	barebones_indent();
+	printf (".. Approx parent gtd %p of -> ", klass);
+	barebones_printf_class (klass);
+
+	barebones_push();
 	mono_class_init_to_ready_level (gklass, MONO_CLASS_READY_APPROX_PARENT);
+	barebones_pop();
 
 	klass->enumtype = gklass->enumtype;
 	klass->valuetype = gklass->valuetype;
 
+	barebones_indent();
+	printf (".. Preloading %p -> ", klass);
+	barebones_printf_class (klass);
+	
+	barebones_push();
 	mono_class_preload_class (klass);
+	barebones_pop();
 
 	g_assert (m_class_ready_level_at_least (klass, MONO_CLASS_READY_APPROX_PARENT));
 	if (max_ready_level == MONO_CLASS_READY_APPROX_PARENT)
 		return klass;
 
+	barebones_indent();
+	printf (".. Exact parent gtd %p of -> ", klass);
+	barebones_printf_class (klass);
+
+	barebones_push();
 	mono_class_init_to_ready_level (gklass, MONO_CLASS_READY_EXACT_PARENT);
+	barebones_pop();
 
 	mono_loader_lock ();
 	if (m_class_ready_level_at_least (klass, MONO_CLASS_READY_EXACT_PARENT)) {

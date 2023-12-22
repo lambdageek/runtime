@@ -4,6 +4,7 @@
     <TargetFramework>$(NetCoreAppCurrent)</TargetFramework>
     <!-- always set SelfContained when running to use Mono on desktop -->
     <SelfContained>true</SelfContained>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <UsingTask TaskName="MonoAOTCompiler"

@@ -2106,21 +2106,17 @@ mono_class_create_runtime_vtable (MonoClass *klass, MonoError *error)
 	gboolean use_interpreter = callbacks.is_interpreter_enabled ();
 	MonoDomain *domain = mono_get_root_domain ();
 
-	mono_loader_lock ();
-
-	vt = m_class_get_runtime_vtable (klass);
-	if (vt) {
-		mono_loader_unlock ();
-		goto exit;
-	}
 	if (!m_class_is_inited (klass) || mono_class_has_failure (klass)) {
 		if (!mono_class_init_internal (klass) || mono_class_has_failure (klass)) {
-			mono_loader_unlock ();
 			mono_error_set_for_class_failure (error, klass);
 			goto return_null;
 		}
 	}
 
+	vt = m_class_get_runtime_vtable (klass);
+	if (vt) {
+		goto exit;
+	}
 	/* Array types require that their element type be valid*/
 	if (m_class_get_byval_arg (klass)->type == MONO_TYPE_ARRAY || m_class_get_byval_arg (klass)->type == MONO_TYPE_SZARRAY) {
 		MonoClass *element_class = m_class_get_element_class (klass);
@@ -2159,6 +2155,13 @@ mono_class_create_runtime_vtable (MonoClass *klass, MonoError *error)
 		mono_loader_unlock ();
 		mono_error_set_for_class_failure (error, klass);
 		goto return_null;
+	}
+
+	mono_loader_lock ();
+	vt = m_class_get_runtime_vtable (klass);
+	if (vt) {
+		mono_loader_unlock ();
+		goto exit;
 	}
 
 	vtable_slots = m_class_get_vtable_size (klass);

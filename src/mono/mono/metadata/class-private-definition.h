@@ -11,6 +11,33 @@
 #ifndef __MONO_METADATA_CLASS_PRIVATE_DEFINITION_H__
 #define __MONO_METADATA_CLASS_PRIVATE_DEFINITION_H__
 
+/* XXX WIP: idea: move fields into structs by readiness level.  add a
+ * version of the getter definition macros that notes the readiness
+ * level.  in debug builds, implement the getters with an assertion
+ * that the readiness level is at least at a certain stage when
+ * reading the fields.
+ */
+#if 0
+/* MonoClass fields accessible when the class ready level is at least MONO_CLASS_READY_BAREBONES */
+struct _MonoClassMembersAtBarebones {
+	uint8_t class_kind;
+	int8_t  ready_level_;
+	uint8_t rank;
+	uint32_t type_token;
+	MonoImage *image;
+	const char *name;
+	const char *name_space;
+};
+
+/* MonoClass fields accessible when the class ready level is at least MONO_CLASS_READY_EXACT_PARENT */
+struct _MonoClassMembersAtExactParent {
+	MonoClass *parent;
+	MonoClass *nested_in;
+	MonoType this_arg;
+	MonoType _byval_arg;
+};
+#endif
+
 struct _MonoClass {
 	/* element class for arrays and enum basetype for enums */
 	MonoClass *element_class;

@@ -2905,10 +2905,16 @@ mono_class_get_and_inflate_typespec_checked (MonoImage *image, guint32 type_toke
 	MonoClass *klass;
 
 	error_init (error);
+	barebones_indent(); printf ("> getting and inflating 0x%08x\n", type_token);
 	klass = mono_class_get_checked (image, type_token, error);
+	barebones_indent(); printf ("> got for inflating 0x%08x -> ", type_token);
+	barebones_printf_class (klass);
 
-	if (klass && context && mono_metadata_token_table (type_token) == MONO_TABLE_TYPESPEC)
+	if (klass && context && mono_metadata_token_table (type_token) == MONO_TABLE_TYPESPEC) {
 		klass = mono_class_inflate_generic_class_checked (klass, context, error);
+		barebones_indent(); printf ("> inflated 0x%08x to", type_token);
+		barebones_printf_class (klass);
+	}
 
 	return klass;
 }

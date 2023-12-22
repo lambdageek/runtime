@@ -25,6 +25,214 @@
 #include <mono/utils/mono-memory-model.h>
 #include <mono/utils/unlocked.h>
 
+static int recurse_count;
+
+static void
+printf_indent(int count)
+{
+	for (int i = 0; i < count; i++)
+		printf (" ");
+}
+
+void
+barebones_indent (void)
+{
+	printf_indent(recurse_count);
+}
+
+void
+barebones_push(void)
+{
+	recurse_count++;
+}
+
+void
+barebones_pop(void)
+{
+	recurse_count--;
+}
+
+static void
+barebones_printf_type_switch (MonoType *t);
+static void
+barebones_printf_class_switch(MonoClass *klass);
+static void
+barebones_printf_tyvar(MonoGenericParam *gparam, gboolean is_mvar);
+static void
+barebones_printf_ginst(MonoGenericClass *gklass);
+static void
+barebones_printf_msig(MonoMethodSignature *msig);
+
+void
+barebones_printf(MonoType *t)
+{
+	barebones_printf_type_switch (t);
+	printf("\n");
+}
+
+void
+barebones_printf_class (MonoClass *klass)
+{
+	barebones_printf_class_switch (klass);
+	printf ("\n");
+}
+
+static void
+barebones_printf_type_switch (MonoType *t)
+{
+	if (m_type_is_byref(t))
+		printf ("ref(");
+	switch (t->type) {
+	case MONO_TYPE_VOID:
+		printf("void");
+		break;
+	case MONO_TYPE_BOOLEAN:
+		printf("bool");
+		break;
+	case MONO_TYPE_CHAR:
+		printf("char");
+		break;
+	case MONO_TYPE_I1:
+		printf("i1");
+		break;
+	case MONO_TYPE_U1:
+		printf("u1");
+		break;
+	case MONO_TYPE_I2:
+		printf("i2");
+		break;
+	case MONO_TYPE_U2:
+		printf("u2");
+		break;
+	case MONO_TYPE_I4:
+		printf("i4");
+		break;
+	case MONO_TYPE_U4:
+		printf("u4");
+		break;
+	case MONO_TYPE_I8:
+		printf("i8");
+		break;
+	case MONO_TYPE_U8:
+		printf("u8");
+		break;
+	case MONO_TYPE_R4:
+		printf("r4");
+		break;
+	case MONO_TYPE_R8:
+		printf("r8");
+		break;
+	case MONO_TYPE_I:
+		printf("intptr");
+		break;
+	case MONO_TYPE_U:
+		printf("uintptr");
+		break;
+	case MONO_TYPE_STRING:
+		printf("string");
+		break;
+	case MONO_TYPE_OBJECT:
+		printf("object");
+		break;
+	case MONO_TYPE_TYPEDBYREF:
+		printf("typedbyref");
+		break;
+	case MONO_TYPE_VALUETYPE:
+	case MONO_TYPE_CLASS:
+		printf ("%s(", t->type ==MONO_TYPE_VALUETYPE ? "valuetype" : "class");
+		barebones_printf_class_switch(t->data.klass);
+		printf(")");
+		break;
+	case MONO_TYPE_MVAR:
+	case MONO_TYPE_VAR:
+		barebones_printf_tyvar(t->data.generic_param, t->type == MONO_TYPE_MVAR);
+		break;
+	case MONO_TYPE_SZARRAY:
+		printf ("(");
+		barebones_printf_class_switch (t->data.klass);
+		printf (")[]");
+		break;
+	case MONO_TYPE_ARRAY:
+		printf ("arr(%d",t->data.array->rank);
+		barebones_printf_class(t->data.array->eklass);
+		printf (")");
+		break;
+	case MONO_TYPE_PTR:
+		printf("ptr(");
+		barebones_printf_type_switch(t->data.type);
+		printf(")");
+		break;
+	case MONO_TYPE_FNPTR:
+		printf("fnptr(");
+		barebones_printf_msig(t->data.method);
+		printf(")");
+		break;
+	case MONO_TYPE_GENERICINST:
+		barebones_printf_ginst(t->data.generic_class);
+		break;
+	default:
+		printf("unknown(%d)", (int)t->type);
+		break;
+	}
+	if (m_type_is_byref (t))
+		printf (")");
+}
+
+static void
+barebones_printf_class_switch(MonoClass *klass)
+{
+	switch (m_class_get_class_kind (klass)) {
+	case MONO_CLASS_DEF:
+	case MONO_CLASS_GTD:
+		if (m_class_get_name_space (klass)) {
+			printf("%s.%s", m_class_get_name_space(klass), m_class_get_name(klass));
+		} else {
+			printf ("%s", m_class_get_name(klass));
+		}
+		break;
+	case MONO_CLASS_ARRAY:
+	case MONO_CLASS_POINTER:
+	case MONO_CLASS_GINST:
+		barebones_printf_type_switch (m_class_get_byval_arg (klass));
+		break;
+	default:
+		printf("unknown_klass(%p)", klass);
+		break;
+	}
+}
+
+static void
+barebones_printf_tyvar(MonoGenericParam *gparam, gboolean is_mvar)
+{
+	const char *container_info = NULL;
+	if (gparam->owner->is_anonymous) {
+		container_info = "A";
+	} else {
+		container_info = " ";
+	}
+	printf("%s%s%s%d", is_mvar ? "!!" : "!", gparam->info.constraints ? "C" : " ",container_info, gparam->num);
+
+}
+
+static void
+barebones_printf_ginst(MonoGenericClass *gklass)
+{
+	printf("ginst(");
+	barebones_printf_class_switch(gklass->container_class);
+	printf(", [[");
+	for (int i = 0; i < gklass->context.class_inst->type_argc; i++) {
+		barebones_printf_type_switch (gklass->context.class_inst->type_argv[i]);
+		printf(", ");
+	}
+	printf("]]");
+}
+
+static void
+barebones_printf_msig(MonoMethodSignature *msig)
+{
+	g_assert_not_reached(); // TODO: finish me
+}
+
 static MonoNativeTlsKey preload_visiting_classes_tls_id;
 
 static void
@@ -72,7 +280,7 @@ preload_mark_done_visiting (MonoClass *klass)
 {
 	GHashTable *hash = preload_visiting_hash ();
 	g_hash_table_remove (hash, klass);
-	mono_trace(G_LOG_LEVEL_DEBUG, MONO_TRACE_TYPE, "Done preloading '%s.%s'", m_class_get_name_space (klass), m_class_get_name (klass));
+	//mono_trace(G_LOG_LEVEL_DEBUG, MONO_TRACE_TYPE, "Done preloading '%s.%s'", m_class_get_name_space (klass), m_class_get_name (klass));
 }
 
 /*
@@ -114,17 +322,19 @@ preload_visit_class_generic_param_constraints (MonoClass *klass);
 static void
 preload_visit_dor (MonoImage *image, MonoGenericContainer *container, uint32_t def_or_ref_or_spec_token);
 static void
+preload_visit_dor_make_class (MonoImage *image, MonoGenericContainer *container, uint32_t def_or_ref_or_spec_token);
+static void
 preload_visit_interfaces_from_typedef (MonoImage *meta, guint32 index, uint32_t **interface_tokens, guint *count);
 static void
 preload_visit_generic_param_constraints (MonoImage *image, guint32 token, MonoGenericContainer *container);
 static void
 preload_visit_gparam_constraints (MonoImage *image, guint32 owner, MonoGenericContainer *container);
 static void
-preload_visit_typedef (MonoImage *image, uint32_t typedef_index);
+preload_visit_typedef (MonoImage *image, uint32_t typedef_token);
 static void
-preload_visit_typeref (MonoImage *image, uint32_t typeref_index);
+preload_visit_typeref (MonoImage *image, uint32_t typeref_token);
 static void
-preload_visit_typespec (MonoImage *image, uint32_t typespec_index);
+preload_visit_typespec (MonoImage *image, MonoGenericContainer *container, uint32_t typespec_token, gboolean make_class);
 static void
 preload_visit_mono_type (MonoType *ty);
 static void
@@ -163,25 +373,37 @@ is_classdef (MonoClass *klass)
 static gboolean
 preload_visit_begin_visit (MonoClass *klass)
 {
-	/* we should only come here without the loader lock */
-	g_assert (!mono_loader_lock_tracking() || !mono_loader_lock_is_owned_by_self());
 	/* if someone already visited this class, don't visit it again */
 	if (m_class_ready_level_at_least (klass, MONO_CLASS_READY_APPROX_PARENT))
 		return FALSE;
 	
 	/* corlib class definitions are already loaded and corlib doesn't depend on any other assemblies. */
+	/* BUT: corlib classes can have generic instances, and generic instances require need to be preloaded :-( */
 	/* micro-optimization: don't bother adding them to the visiting hash, just get out quickly. */
 	/* WISH: it would be nice if we could quickly tell that a ginst or an array lives in corelib
            - but right now that itself requires a traversal of the MonoType (see
            collect_type_images() in metadata.c) */
-	if (m_class_get_image (klass) == mono_defaults.corlib && is_classdef (klass)) {
-		m_class_set_ready_level_at_least (klass, MONO_CLASS_READY_APPROX_PARENT);
-		return FALSE;
-	}
+	//if (m_class_get_image (klass) == mono_defaults.corlib && is_classdef (klass)) {
+	//	m_class_set_ready_level_at_least (klass, MONO_CLASS_READY_APPROX_PARENT);
+	//	return FALSE;
+	//}
 
 	/* if we're already visiting this class, don't go again. */
 	if (preload_is_visiting (klass))
 		return FALSE;
+
+	barebones_indent();
+	printf ("Starting preload (%p)", klass);
+	barebones_printf_class (klass);
+
+	barebones_push();
+	
+	/* if the class hasn't already been preloaded, we should only come here without the loader lock */
+	// FIXME: preload: turn on this assert
+#if 1
+	g_assert (!mono_loader_lock_tracking() || !mono_loader_lock_is_owned_by_self());
+#endif
+	
 	/* mark the that we started visiting the class */
 	/* WISH: it would be nice if we could avoid visiting a class is another thread already
            started preloading it.  But that seems hard: the loser thread would need to somehow wait
@@ -200,6 +422,10 @@ preload_visit_finish_visit (MonoClass *klass)
 	m_class_set_ready_level_at_least (klass, MONO_CLASS_READY_APPROX_PARENT);
 
 	preload_mark_done_visiting (klass);
+	barebones_pop();
+	barebones_indent();
+	printf ("Finished preload (%p)", klass);
+	barebones_printf_class (klass);
 }
 
 static void
@@ -244,19 +470,26 @@ preload_visit_classkind (MonoClass *klass)
 static void
 preload_visit_parent (MonoClass *klass)
 {
+	barebones_indent();
+	printf ("- parent\n");
 	/* maybe the parent is already initialized */
 	if (m_class_get_parent (klass) && m_class_ready_level_at_least (m_class_get_parent (klass), MONO_CLASS_READY_APPROX_PARENT))
 		return;
 	uint32_t klass_token = m_class_get_type_token (klass);
 	MonoImage *image = m_class_get_image (klass);
-	uint32_t parent_token = mono_metadata_token_from_dor (mono_metadata_decode_row_col (&image->tables [MONO_TABLE_TYPEDEF], mono_metadata_token_index (klass_token) - 1, MONO_TYPEDEF_EXTENDS));
+	uint32_t parent_col = mono_metadata_decode_row_col (&image->tables [MONO_TABLE_TYPEDEF], mono_metadata_token_index (klass_token) - 1, MONO_TYPEDEF_EXTENDS);
+	if (!parent_col)
+		return;
+	uint32_t parent_token = mono_metadata_token_from_dor (parent_col);
 	MonoGenericContainer *container = mono_class_try_get_generic_container (klass);
-	preload_visit_dor (image, container, parent_token);
+	preload_visit_dor_make_class (image, container, parent_token);
 }
 
 static void
 preload_visit_interfaces (MonoClass *klass)
 {
+	barebones_indent();
+	printf ("- interfaces\n");
 	if (m_class_is_interfaces_inited (klass))
 		return; // TODO: assert that all the interefaces are at least APPROX_PARENT ?
 	MonoImage *image = m_class_get_image (klass);
@@ -266,7 +499,9 @@ preload_visit_interfaces (MonoClass *klass)
 	uint32_t *itf_tokens = NULL;
 	preload_visit_interfaces_from_typedef (image, klass_token, &itf_tokens, &count);
 	for (unsigned int i = 0; i < count; i++) {
-		preload_visit_dor (image, container, itf_tokens[i]);
+		barebones_indent();
+		printf ("- itf %d\n", i);
+		preload_visit_dor_make_class (image, container, itf_tokens[i]);
 	}
 	g_free (itf_tokens);
 }
@@ -383,7 +618,7 @@ preload_visit_interfaces_from_typedef (MonoImage *meta, guint32 index, uint32_t 
 	return;
 }
 
-/* FIXME: don't copy/paste from mono_metadata_load_generic_param_constraints_checked, make an interator */
+/* FIXME: don't copy/paste from mono_metadata_load_generic_param_constraints_checked, make an iterator */
 static void
 preload_visit_generic_param_constraints (MonoImage *image, guint32 token, MonoGenericContainer *container)
 {
@@ -431,7 +666,7 @@ preload_visit_gparam_constraints (MonoImage *image, guint32 owner, MonoGenericCo
 		mono_metadata_decode_row (tdef, i, cols, MONO_GENPARCONSTRAINT_SIZE);
 		if (cols [MONO_GENPARCONSTRAINT_GENERICPAR] == owner) {
 			token = mono_metadata_token_from_dor (cols [MONO_GENPARCONSTRAINT_CONSTRAINT]);
-			preload_visit_dor (image, container, token);
+			preload_visit_dor_make_class (image, container, token);
 		} else {
 			break;
 		}
@@ -439,19 +674,35 @@ preload_visit_gparam_constraints (MonoImage *image, guint32 owner, MonoGenericCo
 }
 
 static void
+preload_visit_dor_impl (MonoImage *image, MonoGenericContainer *container, uint32_t def_or_ref_or_spec_token, gboolean make_class);
+
+static void
+preload_visit_dor_make_class (MonoImage *image, MonoGenericContainer *container, uint32_t def_or_ref_or_spec_token)
+{
+	// XXX FIXME - get rid of this whole thing?
+	preload_visit_dor_impl (image, container, def_or_ref_or_spec_token, TRUE );
+	
+}
+static void
 preload_visit_dor (MonoImage *image, MonoGenericContainer *container, uint32_t def_or_ref_or_spec_token)
 {
+	// FIXME: should we always use preload_visit_dor_make_class? we will always need parents, interfaces, gparam constraints, right? so it's no harm to materialize them early?
+	preload_visit_dor_impl (image, container, def_or_ref_or_spec_token, FALSE);
+}
+
+static void
+preload_visit_dor_impl (MonoImage *image, MonoGenericContainer *container, uint32_t def_or_ref_or_spec_token, gboolean make_class)
+{
 	int table = mono_metadata_token_table (def_or_ref_or_spec_token);
-	uint32_t index = mono_metadata_token_index (def_or_ref_or_spec_token);
 	switch (table) {
 	case MONO_TABLE_TYPEDEF:
-		preload_visit_typedef (image, index);
+		preload_visit_typedef (image, def_or_ref_or_spec_token);
 		break;
 	case MONO_TABLE_TYPEREF:
-		preload_visit_typeref (image, index);
+		preload_visit_typeref (image, def_or_ref_or_spec_token);
 		break;
 	case MONO_TABLE_TYPESPEC:
-		preload_visit_typespec (image, index);
+		preload_visit_typespec (image, container, def_or_ref_or_spec_token, make_class);
 		break;
 	default:
 		g_assert_not_reached ();
@@ -459,10 +710,10 @@ preload_visit_dor (MonoImage *image, MonoGenericContainer *container, uint32_t d
 }
 
 static void
-preload_visit_typedef (MonoImage *image, uint32_t typedef_index)
+preload_visit_typedef (MonoImage *image, uint32_t typedef_token)
 {
 	ERROR_DECL (preload_error);
-	MonoClass *barebones = mono_class_create_from_typedef_at_level (image, typedef_index, MONO_CLASS_READY_BAREBONES, preload_error);
+	MonoClass *barebones = mono_class_create_from_typedef_at_level (image, typedef_token, MONO_CLASS_READY_BAREBONES, preload_error);
 	if (!is_ok (preload_error)) {
 		mono_error_cleanup (preload_error);
 		return;
@@ -566,11 +817,11 @@ preload_resolve_typeref (MonoImage *image, uint32_t type_token, MonoImage **reso
 }
 
 static void
-preload_visit_typeref (MonoImage *image, uint32_t typeref_index)
+preload_visit_typeref (MonoImage *image, uint32_t typeref_token)
 {
 	MonoImage *resolved_image = NULL;
 	uint32_t resolved_typedef = 0;
-	if (!preload_resolve_typeref  (image, typeref_index, &resolved_image, &resolved_typedef))
+	if (!preload_resolve_typeref  (image, typeref_token, &resolved_image, &resolved_typedef))
 		return;
 	if (!resolved_typedef)
 		return;
@@ -685,19 +936,63 @@ preload_visit_type_switch (MonoType *ty)
 }
 
 static void
-preload_visit_typespec (MonoImage *image, uint32_t typespec_index)
+preload_visit_typespec (MonoImage *image, MonoGenericContainer *container, uint32_t typespec_token, gboolean make_class)
 {
 	// see mono_type_create_from_typespec_checked and do_mono_metadata_parse_generic_class and mono_metadata_parse_generic_inst
 	// TODO: finish this
 	// N.B. we might need to make the parser return barebones types
+
+	barebones_indent();
+	printf(": preloading typespec 0x%08x\n", typespec_token);
+
+	// NOTE: 2 visits - once with anonymous gparams, once with the container->context.class_inst gparams
 	ERROR_DECL (typeload_error);
-	MonoType * t = mono_type_create_from_typespec_at_level (image, typespec_index, MONO_CLASS_READY_BAREBONES, typeload_error);
-	if (!is_ok (typeload_error)) {
-		mono_error_cleanup (typeload_error);
-		return;
-	}
+	MonoType * t = mono_type_create_from_typespec_at_level (image, typespec_token, MONO_CLASS_READY_BAREBONES, typeload_error);
+	mono_error_assert_ok (typeload_error);
+	barebones_indent();
+	printf (": preloading typespec 0x%08x got ", typespec_token);
+	barebones_printf (t);
 	
 	preload_visit_mono_type (t);
+
+	MonoClass *k = NULL;
+	if (make_class) {
+		// ensure the MonoClass for the GINST is constructed and recorded as traversed.
+		k = mono_class_from_mono_type_at_level (t, MONO_CLASS_READY_BAREBONES);
+		barebones_indent();
+		printf (": preloading typespec 0x%08x klass ", typespec_token);
+		barebones_printf_class(k);
+		barebones_push();
+		mono_class_preload_class (k);
+		barebones_pop();
+	} else {
+		//preload_visit_mono_type (t);
+	}
+
+	MonoType *t2 = NULL;
+	if (container && container->context.class_inst) {
+		ERROR_DECL(inflate_error);
+		t2 = mono_class_inflate_generic_type_checked (make_class ? m_class_get_byval_arg (k) : t, &container->context, inflate_error);
+		mono_error_assert_ok (inflate_error);
+		t = t2;
+		barebones_indent (); printf (": inflated typespec 0x%08x to ", typespec_token);
+		barebones_printf (t);
+	}
+
+	if (make_class) {
+		// ensure the MonoClass for the GINST is constructed and recorded as traversed.
+		k = mono_class_from_mono_type_at_level (t, MONO_CLASS_READY_BAREBONES);
+		barebones_indent();
+		printf (": preloading typespec 0x%08x (2nd) klass ", typespec_token);
+		barebones_printf_class(k);
+		barebones_push();
+		mono_class_preload_class (k);
+		barebones_pop();
+	} else {
+		preload_visit_mono_type (t);
+	}
+	if (t2)
+		mono_metadata_free_type (t2);
 }
 
 static void

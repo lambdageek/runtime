@@ -1050,8 +1050,24 @@ mono_loader_init           (void);
 void
 mono_loader_cleanup        (void);
 
+#define DEBUG_LOADER_LOCK
+
+#ifdef DEBUG_LOADER_LOCK
+void
+mono_loader_lock_last_location (const char *filename, int lineno, const char *func, gboolean locking);
+
+MONO_COMPONENT_API void
+(mono_loader_lock_raw)           (void);
+
+
+#define mono_loader_lock() do { \
+	(mono_loader_lock_raw)(); \
+	mono_loader_lock_last_location (__FILE__, __LINE__, __func__, TRUE); \
+	} while (0)
+#else
 MONO_COMPONENT_API void
 mono_loader_lock           (void);
+#endif
 
 MONO_COMPONENT_API void
 mono_loader_unlock         (void);
@@ -1070,6 +1086,15 @@ mono_loader_lock_if_inited (void);
 
 void
 mono_loader_unlock_if_inited (void);
+
+/* sanity checking when mono_loader_lock_track_ownership is on: disallow taking the loader lock in some regions
+ * - call this after taking a low-level lock in order to prevent lock inversion
+ */
+void
+mono_loader_lock_forbid (gpointer *cookie);
+
+void
+mono_loader_lock_allow (gpointer cookie);
 
 void
 mono_reflection_init       (void);
@@ -1708,5 +1733,22 @@ m_method_alloc0 (MonoMethod *method, guint size)
 
 /*Now that everything has been defined, let's include the inline functions */
 #include <mono/metadata/class-inlines.h>
+
+void
+barebones_printf(MonoType *t);
+
+
+void
+barebones_printf_class (MonoClass *klass);
+
+void
+barebones_indent(void);
+
+void
+barebones_push(void);
+
+void
+barebones_pop(void);
+
 
 #endif /* __MONO_METADATA_CLASS_INTERNALS_H__ */

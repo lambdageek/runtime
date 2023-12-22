@@ -62,7 +62,7 @@
 static MonoCoopMutex loader_mutex;
 static mono_mutex_t global_loader_data_mutex;
 static gboolean loader_lock_inited;
-static gboolean loader_lock_track_ownership;
+static gboolean loader_lock_track_ownership = TRUE; // XXX DO NOT MERGE
 
 /*
  * This TLS variable holds how many times the current thread has acquired the loader
@@ -125,17 +125,108 @@ mono_global_loader_data_unlock (void)
 	mono_locks_os_release (&global_loader_data_mutex, LoaderGlobalDataLock);
 }
 
+static int
+get_loader_lock_nest (void)
+{
+	return GPOINTER_TO_INT (mono_native_tls_get_value (loader_lock_nest_id));
+}
+
+
+#ifdef DEBUG_LOADER_LOCK
+struct LoaderLockLoc {
+	const char *file;
+	int lineno;
+	const char *func;
+	int nest;
+};
+
+static GList *loader_lock_loc;
+
+void
+dump_loader_locks (void);
+
+void
+dump_loader_locks (void)
+{
+	for (GList *p = loader_lock_loc; p != NULL; p = g_list_next(p)) {
+		struct LoaderLockLoc *loc = (struct LoaderLockLoc *)p->data;
+		printf ("[%d] %s:%d: %s\n", loc->nest, loc->file, loc->lineno, loc->func);
+	}
+}
+
+void
+mono_loader_lock_last_location (const char *file, int lineno, const char *func, gboolean locking)
+{
+	gboolean do_it = TRUE; //FALSE;
+	int nest = get_loader_lock_nest ();
+	//do_it |= nest == -1; // if locking is forbidden, record that we're doing it
+	// if locking, only overwrite on the outermost lock (ie the one that took the nesting to 1)
+	//do_it |= locking && nest == 1;
+	// if unlocking, only overwrite on the outermost unlock (ie the one that took the nesting to 0)
+	//do_it |= !locking && nest == 0;
+	if (do_it) {
+		if (locking) {
+			struct LoaderLockLoc *loc = g_new0 (struct LoaderLockLoc, 1);
+			loader_lock_loc = g_list_prepend (loader_lock_loc, loc);
+			loc->file = file;
+			loc->lineno = lineno;
+			loc->func = func;
+			loc->nest = nest;
+			printf ("!!Locking\n");
+		} else {
+			if (!loader_lock_loc)
+				return;
+			struct LoaderLockLoc *loc = (struct LoaderLockLoc *)loader_lock_loc->data;
+			loader_lock_loc = g_list_next (loader_lock_loc);
+			g_free (loc);
+			printf ("!!Unlocking\n");
+		}
+		dump_loader_locks();
+	}
+}
+#endif /* DEBUG_LOADER_LOCK */
+
+static void
+set_loader_lock_nest (int value)
+{
+	mono_native_tls_set_value (loader_lock_nest_id, GINT_TO_POINTER (value));
+}
+
+static void
+inc_loader_lock_nest (void)
+{
+	int nest = get_loader_lock_nest ();
+	if (nest == -1) {
+		g_error ("Taking the loader lock is forbidden");
+	}
+	set_loader_lock_nest (nest + 1);
+}
+
+static void
+dec_loader_lock_nest (void)
+{
+	int nest = get_loader_lock_nest ();
+	g_assert (nest > 0);
+	set_loader_lock_nest (nest - 1);
+}
+
+
 /**
  * mono_loader_lock:
  *
  * See \c docs/thread-safety.txt for the locking strategy.
  */
+#ifdef DEBUG_LOADER_LOCK
+void
+mono_loader_lock_raw (void)
+#else
 void
 mono_loader_lock (void)
+#endif
 {
 	mono_locks_coop_acquire (&loader_mutex, LoaderLock);
 	if (G_UNLIKELY (loader_lock_track_ownership)) {
-		mono_native_tls_set_value (loader_lock_nest_id, GUINT_TO_POINTER (GPOINTER_TO_UINT (mono_native_tls_get_value (loader_lock_nest_id)) + 1));
+		inc_loader_lock_nest();
 	}
 }
 
@@ -145,10 +236,14 @@ mono_loader_lock (void)
 void
 mono_loader_unlock (void)
 {
+#ifdef DEBUG_LOADER_LOCK
+	mono_loader_lock_last_location (NULL, -1, NULL, FALSE);
+#endif
 	mono_locks_coop_release (&loader_mutex, LoaderLock);
 	if (G_UNLIKELY (loader_lock_track_ownership)) {
-		mono_native_tls_set_value (loader_lock_nest_id, GUINT_TO_POINTER (GPOINTER_TO_UINT (mono_native_tls_get_value (loader_lock_nest_id)) - 1));
+		dec_loader_lock_nest();
 	}
+	
 }
 
 /*
@@ -175,13 +270,36 @@ mono_loader_lock_is_owned_by_self (void)
 {
 	g_assert (loader_lock_track_ownership);
 
-	return GPOINTER_TO_UINT (mono_native_tls_get_value (loader_lock_nest_id)) > 0;
+	return get_loader_lock_nest () > 0;
 }
 
 gboolean
 mono_loader_lock_tracking (void)
 {
 	return loader_lock_track_ownership;
+}
+
+void
+mono_loader_lock_forbid(gpointer *cookie)
+{
+	if (!loader_lock_track_ownership) {
+		*cookie = GINT_TO_POINTER(-1);
+		return;
+	}
+	int nest = get_loader_lock_nest ();
+	*cookie = GINT_TO_POINTER (nest);
+	set_loader_lock_nest (-1); // disallow inc_loader_lock_nest from succeeding
+}
+
+void
+mono_loader_lock_allow(gpointer cookie)
+{
+	int cookie_val = GPOINTER_TO_INT(cookie);
+	if (cookie_val == -1) {
+		/* track ownership was off when we entered */
+		return;
+	}
+	set_loader_lock_nest (cookie_val);
 }
 
 /*

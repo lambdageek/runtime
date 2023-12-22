@@ -2,6 +2,18 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+
+public unsafe class G<T> : H<G<T>*[]> {
+        
+}
+
+public class H<T> : IEnumerable<T> {
+        public IEnumerator<T> GetEnumerator() => null!;        
+        IEnumerator IEnumerable.GetEnumerator() => null!;
+}
 
 namespace HelloWorld
 {
@@ -14,6 +26,11 @@ namespace HelloWorld
             Console.WriteLine(typeof(object).Assembly.FullName);
             Console.WriteLine(System.Reflection.Assembly.GetEntryAssembly ());
             Console.WriteLine(System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+            Console.WriteLine (typeof(G<int>).FullName);
+            var arr = new string[] { "Alice", "Bob", "Clancey", "David", "Zara", "Will", "Xavier", "Xavier"};
+            var q = arr.Where(s => s != "Clancey").Distinct().OrderBy(s => s[0]);
+            foreach (var qi in q)
+                    Console.WriteLine ($"{qi}");
         }
     }
 }
