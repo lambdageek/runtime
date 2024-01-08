@@ -2354,7 +2354,15 @@ mono_class_create_runtime_vtable (MonoClass *klass, MonoError *error)
 	 */
 	/* Special case System.MonoType to avoid infinite recursion */
 	if (!mono_runtime_get_no_exec () && klass != mono_defaults.runtimetype_class) {
+		mono_loader_unlock ();
 		MonoReflectionTypeHandle vt_type = mono_type_get_object_handle (m_class_get_byval_arg (klass), error);
+		mono_loader_lock ();
+		MonoVTable *vt2 = m_class_get_runtime_vtable (klass);
+		if (vt2) {
+			vt = vt2;
+			mono_loader_unlock ();
+			goto exit;
+		}
 		vt->type = MONO_HANDLE_RAW (vt_type);
 		if (!is_ok (error)) {
 			mono_loader_unlock ();

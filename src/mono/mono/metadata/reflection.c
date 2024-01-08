@@ -496,6 +496,7 @@ mono_type_get_object_checked (MonoType *type, MonoError *error)
 	else
 		res = (MonoReflectionType *)mono_g_hash_table_lookup (memory_manager->type_hash, type);
 	mono_mem_manager_unlock (memory_manager);
+	mono_loader_unlock ();
 	if (res)
 		goto leave;
 
@@ -511,6 +512,7 @@ mono_type_get_object_checked (MonoType *type, MonoError *error)
 		res = mono_type_get_object_checked (norm_type, error);
 		goto_if_nok (error, leave);
 
+		mono_loader_lock();
 		mono_mem_manager_lock (memory_manager);
 		if (memory_manager->collectible)
 			cached = mono_weak_hash_table_lookup (memory_manager->weak_type_hash, type);
@@ -525,6 +527,7 @@ mono_type_get_object_checked (MonoType *type, MonoError *error)
 				mono_g_hash_table_insert_internal (memory_manager->type_hash, type, res);
 		}
 		mono_mem_manager_unlock (memory_manager);
+		mono_loader_unlock();
 		goto leave;
 	}
 
@@ -565,6 +568,7 @@ mono_type_get_object_checked (MonoType *type, MonoError *error)
 		MONO_OBJECT_SETREF_INTERNAL (res, m_keepalive, loader_alloc);
 	}
 
+	mono_loader_lock ();
 	mono_mem_manager_lock (memory_manager);
 	if (memory_manager->collectible)
 		cached = (MonoReflectionType *)mono_weak_hash_table_lookup (memory_manager->weak_type_hash, type);
@@ -581,9 +585,9 @@ mono_type_get_object_checked (MonoType *type, MonoError *error)
 			domain->typeof_void = (MonoObject*)res;
 	}
 	mono_mem_manager_unlock (memory_manager);
+	mono_loader_unlock ();
 
 leave:
-	mono_loader_unlock ();
 	return res;
 }
 
