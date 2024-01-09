@@ -256,6 +256,9 @@ mono_class_setup_basic_field_info (MonoClass *klass)
 	mono_loader_unlock ();
 }
 
+static void
+mono_class_layout_preload_fields (MonoClass *klass);
+
 /**
  * mono_class_setup_fields:
  * \p klass The class to initialize
@@ -429,6 +432,7 @@ mono_class_setup_fields (MonoClass *klass)
 	}
 
 	if (!mono_class_has_failure (klass)) {
+		mono_class_layout_preload_fields (klass);
 		mono_loader_lock ();
 		mono_class_layout_fields (klass, instance_size, packing_size, real_size, FALSE);
 		mono_loader_unlock ();
@@ -731,7 +735,7 @@ mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, M
 	 * so it has to come after setup_mono_type ().
 	 */
 	if ((nesting_tokeen = mono_metadata_nested_in_typedef (image, type_token))) {
-		klass->nested_in = mono_class_create_from_typedef (image, nesting_tokeen, error);
+		klass->nested_in = mono_class_create_from_typedef_at_level (image, nesting_tokeen, MONO_CLASS_READY_BAREBONES, error);
 		if (!is_ok (error)) {
 			/*FIXME implement a mono_class_set_failure_from_mono_error */
 			mono_class_set_type_load_failure (klass, "%s",  mono_error_get_message (error));
@@ -932,6 +936,26 @@ parent_failure:
 	return NULL;
 }
 
+
+static void
+mono_generic_class_setup_parent_preload (MonoClass *klass, MonoClass *gtd)
+{
+	if (gtd->parent) {
+		ERROR_DECL (error);
+		MonoGenericClass *gclass = mono_class_get_generic_class (klass);
+
+		MonoClass *gtd_parent = gtd->parent;
+		MonoGenericContext *context = mono_generic_class_get_context (gclass);
+
+		MonoType *inflated = mono_class_inflate_generic_type_checked (m_class_get_byval_arg (gtd_parent), context, error);
+		if (!is_ok (error)) {
+			mono_error_cleanup (error);
+			return;
+		}
+		/*MonoClass *approx_parent =*/ (void)mono_class_from_mono_type_at_level (inflated, MONO_CLASS_READY_APPROX_PARENT);
+		mono_metadata_free_type (inflated);
+	}
+}
 
 static void
 mono_generic_class_setup_parent (MonoClass *klass, MonoClass *gtd)
@@ -1185,6 +1209,9 @@ mono_class_create_generic_inst_at_level (MonoGenericClass *gclass, MonoClassRead
 	mono_class_init_to_ready_level (gklass, MONO_CLASS_READY_EXACT_PARENT);
 	barebones_pop();
 
+	/* preload the parent instantiation */
+	mono_generic_class_setup_parent_preload (klass, gklass);
+	
 	mono_loader_lock ();
 	if (m_class_ready_level_at_least (klass, MONO_CLASS_READY_EXACT_PARENT)) {
 		// someone else got here first
@@ -2433,6 +2460,28 @@ validate_struct_fields_overlaps (guint8 *layout_check, int layout_size, MonoClas
 	}
 
 	return TRUE;
+}
+
+static void
+mono_class_layout_preload_fields (MonoClass *klass)
+{
+	if (klass->fields_inited)
+		return;
+
+	int i;
+	const int top = mono_class_get_field_count (klass);
+
+	for (i = 0; i < top; i++) {
+		MonoClassField *field = &klass->fields [i];
+
+		if (mono_field_is_deleted (field))
+			continue;
+		// instance and static fields
+		/*if (field->type->attrs & FIELD_ATTRIBUTE_STATIC)
+			continue;*/
+
+		/*MonoClass *field_class = */ (void)mono_class_from_mono_type_at_level (field->type, MONO_CLASS_READY_APPROX_PARENT);
+	}
 }
 
 /*

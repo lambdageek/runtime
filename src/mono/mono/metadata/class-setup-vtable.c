@@ -155,7 +155,6 @@ mono_class_setup_interface_offsets_internal (MonoClass *klass, int cur_slot, int
 	gboolean overwrite = (setup_itf_offsets_flags & MONO_SETUP_ITF_OFFSETS_OVERWRITE) != 0;
 	gboolean bitmap_only = (setup_itf_offsets_flags & MONO_SETUP_ITF_OFFSETS_BITMAP_ONLY) != 0;
 
-	mono_loader_lock ();
 
 	mono_class_setup_supertypes (klass);
 
@@ -175,10 +174,14 @@ mono_class_setup_interface_offsets_internal (MonoClass *klass, int cur_slot, int
 				mono_class_set_type_load_failure (klass, "Error calculating interface offset of %s", name);
 				g_free (name);
 				cur_slot = -1;
-				goto end;
+				goto end_unlocked;
 			}
+			
+			mono_loader_lock ();
 
 			mono_class_setup_interface_id_nolock (inflated);
+
+			mono_loader_unlock ();
 
 			interfaces_full [i] = inflated;
 			if (!bitmap_only)
@@ -190,7 +193,7 @@ mono_class_setup_interface_offsets_internal (MonoClass *klass, int cur_slot, int
 				mono_class_set_type_load_failure (klass, "Error calculating interface offset of %s", name);
 				g_free (name);
 				cur_slot = -1;
-				goto end;
+				goto end_unlocked;
 			}
 
 			cur_slot = MAX (cur_slot, interface_offsets_full [i] + count);
@@ -211,8 +214,11 @@ mono_class_setup_interface_offsets_internal (MonoClass *klass, int cur_slot, int
 			ic = k->interfaces [i];
 
 			/* A gparam does not have any interface_id set. */
-			if (! mono_class_is_gparam (ic))
+			if (! mono_class_is_gparam (ic)) {
+				mono_loader_lock ();
 				mono_class_setup_interface_id_nolock (ic);
+				mono_loader_unlock ();
+			}
 
 			if (max_iid < ic->interface_id)
 				max_iid = ic->interface_id;
@@ -224,7 +230,7 @@ mono_class_setup_interface_offsets_internal (MonoClass *klass, int cur_slot, int
 			g_free (name);
 			mono_error_cleanup (error);
 			cur_slot = -1;
-			goto end;
+			goto end_unlocked;
 		}
 		if (ifaces) {
 			num_ifaces += ifaces->len;
@@ -291,7 +297,7 @@ mono_class_setup_interface_offsets_internal (MonoClass *klass, int cur_slot, int
 				mono_class_set_type_load_failure (klass, "Error calculating interface offset of %s", name);
 				g_free (name);
 				cur_slot = -1;
-				goto end;
+				goto end_unlocked;
 			}
 			cur_slot += count;
 		}
@@ -307,6 +313,7 @@ mono_class_setup_interface_offsets_internal (MonoClass *klass, int cur_slot, int
 	}
 
 publish:
+	mono_loader_lock ();
 	/* Publish the data */
 	klass->max_interface_id = max_iid;
 	/*
@@ -353,8 +360,10 @@ publish:
 #endif
 		}
 	}
-end:
+
+// end:
 	mono_loader_unlock ();
+end_unlocked:
 
 	g_free (interfaces_full);
 	g_free (interface_offsets_full);
@@ -888,6 +897,19 @@ mono_class_setup_vtable (MonoClass *klass)
 	mono_class_setup_vtable_full (klass, NULL);
 }
 
+static MonoMethod*
+mono_class_get_virtual_methods (MonoClass* klass, gpointer *iter);
+
+static void
+preload_method_signatures (MonoClass *klass)
+{
+	MonoMethod *cm = NULL;
+	gpointer iter = NULL;
+	while ((cm = mono_class_get_virtual_methods (klass, &iter))) {
+		(void)mono_method_signature_internal (cm);
+	}
+}
+
 static void
 mono_class_setup_vtable_full (MonoClass *klass, GList *in_setup)
 {
@@ -919,6 +941,10 @@ mono_class_setup_vtable_full (MonoClass *klass, GList *in_setup)
 		return;
 	}
 
+	mono_loader_unlock ();
+	preload_method_signatures (klass);
+	mono_loader_lock ();
+
 	UnlockedIncrement (&mono_stats.generic_vtable_count);
 	in_setup = g_list_prepend (in_setup, klass);
 
@@ -937,6 +963,8 @@ mono_class_setup_vtable_full (MonoClass *klass, GList *in_setup)
 		type_token = klass->type_token;
 	}
 
+	mono_loader_unlock ();
+
 	if (image_is_dynamic (klass->image)) {
 		/* Generic instances can have zero method overrides without causing any harm.
 		 * This is true since we don't do layout all over again for them, we simply inflate
@@ -945,7 +973,7 @@ mono_class_setup_vtable_full (MonoClass *klass, GList *in_setup)
 		mono_reflection_get_dynamic_overrides (klass, &overrides, &onum, error);
 		if (!is_ok (error)) {
 			mono_class_set_type_load_failure (klass, "Could not load list of method overrides due to %s", mono_error_get_message (error));
-			goto done;
+			goto done_unlocked;
 		}
 	} else {
 		/* The following call fails if there are missing methods in the type */
@@ -953,17 +981,23 @@ mono_class_setup_vtable_full (MonoClass *klass, GList *in_setup)
 		mono_class_get_overrides_full (klass->image, type_token, &overrides, &onum, context, error);
 		if (!is_ok (error)) {
 			mono_class_set_type_load_failure (klass, "Could not load list of method overrides due to %s", mono_error_get_message (error));
-			goto done;
+			goto done_unlocked;
 		}
 	}
 
+	mono_loader_lock();
+	if (klass->vtable) {
+		mono_loader_unlock ();
+		goto done_unlocked;
+	}
+	mono_loader_unlock();
+
 	mono_class_setup_vtable_general (klass, overrides, onum, in_setup);
 
-done:
+done_unlocked:
 	g_free (overrides);
 	mono_error_cleanup (error);
 
-	mono_loader_unlock ();
 	g_list_remove (in_setup, klass);
 
 	return;
@@ -1683,16 +1717,53 @@ check_vtable_covariant_override_impls (MonoClass *klass, MonoMethod **vtable, in
 }
 #endif /* FEATURE_COVARIANT_RETURNS */
 
+static void
+mono_class_setup_vtable_general_locked (MonoClass *klass, MonoMethod **overrides, int onum, int max_vtsize, int cur_slot, int stelemref_slot, GList *in_setup);
+
 /*
- * LOCKING: this is supposed to be called with the loader lock held.
+ * LOCKING: acquires the loader lock
  */
 void
 mono_class_setup_vtable_general (MonoClass *klass, MonoMethod **overrides, int onum, GList *in_setup)
 {
 	ERROR_DECL (error);
+	int max_vtsize = 0, cur_slot = 0;
+	int stelemref_slot = 0;
+
+	mono_loader_lock ();
+	if (overrides && !verify_class_overrides (klass, overrides, onum)) {
+		mono_loader_unlock ();
+		return;
+	}
+	mono_loader_unlock ();
+	
+	max_vtsize = setup_class_vtsize (klass, in_setup,  &cur_slot, &stelemref_slot, error);
+	if (max_vtsize == -1)
+		return;
+
+	cur_slot = mono_class_setup_interface_offsets_internal (klass, cur_slot, MONO_SETUP_ITF_OFFSETS_OVERWRITE);
+	if (cur_slot == -1) /*setup_interface_offsets fails the type.*/
+		return;
+	
+	if (mono_class_setup_need_stelemref_method (klass)) {
+		// preload the stelemref stuff - this can trigger type loading early during startup
+		(void)mono_marshal_get_virtual_stelemref (klass);
+	}
+
+	mono_loader_lock ();
+	mono_class_setup_vtable_general_locked (klass, overrides, onum, max_vtsize, cur_slot, stelemref_slot, in_setup);
+	mono_loader_unlock ();
+}
+
+/*
+ * LOCKING: this is supposed to be called with the loader lock held.
+ */
+static void
+mono_class_setup_vtable_general_locked (MonoClass *klass, MonoMethod **overrides, int onum, int max_vtsize, int cur_slot, int stelemref_slot, GList *in_setup)
+{
+	ERROR_DECL (error);
 	MonoClass *k, *ic;
 	MonoMethod **vtable = NULL;
-	int max_vtsize = 0, cur_slot = 0;
 	GHashTable *override_map = NULL;
 	GHashTable *override_class_map = NULL;
 	GHashTable *conflict_map = NULL;
@@ -1700,20 +1771,8 @@ mono_class_setup_vtable_general (MonoClass *klass, MonoMethod **overrides, int o
 	int first_non_interface_slot;
 #endif
 	GSList *virt_methods = NULL, *l;
-	int stelemref_slot = 0;
 
 	if (klass->vtable)
-		return;
-
-	if (overrides && !verify_class_overrides (klass, overrides, onum))
-		return;
-
-	max_vtsize = setup_class_vtsize (klass, in_setup,  &cur_slot, &stelemref_slot, error);
-	if (max_vtsize == -1)
-		return;
-
-	cur_slot = mono_class_setup_interface_offsets_internal (klass, cur_slot, MONO_SETUP_ITF_OFFSETS_OVERWRITE);
-	if (cur_slot == -1) /*setup_interface_offsets fails the type.*/
 		return;
 
 	DEBUG_INTERFACE_VTABLE (first_non_interface_slot = cur_slot);

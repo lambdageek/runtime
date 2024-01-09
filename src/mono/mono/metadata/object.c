@@ -2085,6 +2085,36 @@ MONO_RESTORE_WARNING
 	return (gpointer*) ((char*)m_class_alloc0 (klass, (guint)vtable_size) + alloc_offset);
 }
 
+static void
+preload_static_field_attrs_and_fields (MonoClass *klass)
+{
+	if (m_class_has_no_special_static_fields (klass))
+		return;
+	gpointer iter = NULL;
+	MonoClassField *field = NULL;
+	while ((field = mono_class_get_fields_internal (klass, &iter))) {
+		/* metadata-update: added fields are stored external to the object and don't contribute to the bitmap */
+		if (m_field_is_from_update (field))
+			continue;
+		if (!(field->type->attrs & FIELD_ATTRIBUTE_STATIC))
+			continue;
+		if (mono_field_is_deleted (field))
+			continue;
+		if (!(field->type->attrs & FIELD_ATTRIBUTE_LITERAL)) {
+			// this triggers preloading the classes of the attributes on the field
+			gint32 special_static = field_is_special_static (klass, field);
+			if (special_static != SPECIAL_STATIC_NONE) {
+				if (mono_type_is_reference (field->type))
+					continue;
+				else if (mono_type_is_struct (field->type)) {
+					// preload the field type
+					(void)mono_class_from_mono_type_internal (field->type);
+				}
+			}
+		}
+	}
+}
+
 static MonoVTable *
 mono_class_create_runtime_vtable (MonoClass *klass, MonoError *error)
 {
@@ -2163,6 +2193,16 @@ mono_class_create_runtime_vtable (MonoClass *klass, MonoError *error)
 		mono_loader_unlock ();
 		goto exit;
 	}
+
+	mono_loader_unlock();
+	preload_static_field_attrs_and_fields (klass);
+	mono_loader_lock();
+	vt = m_class_get_runtime_vtable (klass);
+	if (vt) {
+		mono_loader_unlock ();
+		goto exit;
+	}
+	
 
 	vtable_slots = m_class_get_vtable_size (klass);
 	/* we add an additional vtable slot to store the pointer to static field data only when needed */

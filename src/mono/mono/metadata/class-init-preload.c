@@ -911,7 +911,14 @@ preload_visit_type_switch (MonoType *ty)
 	}
 	case MONO_TYPE_PTR: {
 		MonoType *etype = ty->data.type;
-		preload_visit_mono_type (etype);
+		// Note: this doesn't work for Foo** because we will end up preloading the MonoClass for Foo,
+		// but not the MonoClass for Foo*
+		//
+		//preload_visit_mono_type (etype);
+		//
+		// instead convert the element to a MonoClass and then preload that.
+		MonoClass *eklass = mono_class_from_mono_type_at_level  (etype, MONO_CLASS_READY_BAREBONES);
+		mono_class_preload_class (eklass);
 		break;
 	}
 	case MONO_TYPE_FNPTR:
