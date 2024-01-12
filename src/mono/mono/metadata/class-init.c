@@ -2480,7 +2480,16 @@ mono_class_layout_preload_fields (MonoClass *klass)
 		/*if (field->type->attrs & FIELD_ATTRIBUTE_STATIC)
 			continue;*/
 
-		/*MonoClass *field_class = */ (void)mono_class_from_mono_type_at_level (field->type, MONO_CLASS_READY_APPROX_PARENT);
+		MonoClass *field_class = mono_class_from_mono_type_at_level (field->type, MONO_CLASS_READY_APPROX_PARENT);
+		if (m_type_is_byref (field->type) || MONO_TYPE_IS_REFERENCE (field->type)) {
+			continue;
+		} else if (mono_type_is_generic_parameter (field->type) || mono_type_is_pointer (field->type)) {
+			continue;
+		} else {
+			/* it's a valuetype; we're going to need its fields */
+			/* FIXME: do we know we can't loop at this point? */
+			mono_class_setup_fields (field_class);
+		}
 	}
 }
 
