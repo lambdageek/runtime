@@ -1050,7 +1050,7 @@ mono_loader_init           (void);
 void
 mono_loader_cleanup        (void);
 
-#define DEBUG_LOADER_LOCK
+// #define DEBUG_LOADER_LOCK
 
 #ifdef DEBUG_LOADER_LOCK
 void
