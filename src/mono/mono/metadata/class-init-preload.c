@@ -400,11 +400,11 @@ preload_visit_begin_visit (MonoClass *klass)
 	if (preload_is_visiting (klass))
 		return FALSE;
 
-	barebones_indent();
-	printf ("Starting preload (%p)", klass);
-	barebones_printf_class (klass);
+	BAREBONES(barebones_indent());
+	BAREBONES(printf ("Starting preload (%p)", klass));
+	BAREBONES(barebones_printf_class (klass));
 
-	barebones_push();
+	BAREBONES(barebones_push());
 	
 	/* if the class hasn't already been preloaded, we should only come here without the loader lock */
 	// FIXME: preload: turn on this assert
@@ -430,10 +430,10 @@ preload_visit_finish_visit (MonoClass *klass)
 	m_class_set_ready_level_at_least (klass, MONO_CLASS_READY_APPROX_PARENT);
 
 	preload_mark_done_visiting (klass);
-	barebones_pop();
-	barebones_indent();
-	printf ("Finished preload (%p)", klass);
-	barebones_printf_class (klass);
+	BAREBONES(barebones_pop());
+	BAREBONES(barebones_indent());
+	BAREBONES(printf ("Finished preload (%p)", klass));
+	BAREBONES(barebones_printf_class (klass));
 }
 
 static void
@@ -478,8 +478,8 @@ preload_visit_classkind (MonoClass *klass)
 static void
 preload_visit_parent (MonoClass *klass)
 {
-	barebones_indent();
-	printf ("- parent\n");
+	BAREBONES(barebones_indent());
+	BAREBONES(printf ("- parent\n"));
 	/* maybe the parent is already initialized */
 	if (m_class_get_parent (klass) && m_class_ready_level_at_least (m_class_get_parent (klass), MONO_CLASS_READY_APPROX_PARENT))
 		return;
@@ -496,8 +496,8 @@ preload_visit_parent (MonoClass *klass)
 static void
 preload_visit_interfaces (MonoClass *klass)
 {
-	barebones_indent();
-	printf ("- interfaces\n");
+	BAREBONES(barebones_indent());
+	BAREBONES(printf ("- interfaces\n"));
 	if (m_class_is_interfaces_inited (klass))
 		return; // TODO: assert that all the interefaces are at least APPROX_PARENT ?
 	MonoImage *image = m_class_get_image (klass);
@@ -507,8 +507,8 @@ preload_visit_interfaces (MonoClass *klass)
 	uint32_t *itf_tokens = NULL;
 	preload_visit_interfaces_from_typedef (image, klass_token, &itf_tokens, &count);
 	for (unsigned int i = 0; i < count; i++) {
-		barebones_indent();
-		printf ("- itf %d\n", i);
+		BAREBONES(barebones_indent());
+		BAREBONES(printf ("- itf %d\n", i));
 		preload_visit_dor_make_class (image, container, itf_tokens[i]);
 	}
 	g_free (itf_tokens);
@@ -957,16 +957,16 @@ preload_visit_typespec (MonoImage *image, MonoGenericContainer *container, uint3
 	// TODO: finish this
 	// N.B. we might need to make the parser return barebones types
 
-	barebones_indent();
-	printf(": preloading typespec 0x%08x\n", typespec_token);
+	BAREBONES(barebones_indent());
+	BAREBONES(printf(": preloading typespec 0x%08x\n", typespec_token));
 
 	// NOTE: 2 visits - once with anonymous gparams, once with the container->context.class_inst gparams
 	ERROR_DECL (typeload_error);
 	MonoType * t = mono_type_create_from_typespec_at_level (image, typespec_token, MONO_CLASS_READY_BAREBONES, typeload_error);
 	mono_error_assert_ok (typeload_error);
-	barebones_indent();
-	printf (": preloading typespec 0x%08x got ", typespec_token);
-	barebones_printf (t);
+	BAREBONES(barebones_indent());
+	BAREBONES(printf (": preloading typespec 0x%08x got ", typespec_token));
+	BAREBONES(barebones_printf (t));
 	
 	preload_visit_mono_type (t);
 
@@ -974,12 +974,12 @@ preload_visit_typespec (MonoImage *image, MonoGenericContainer *container, uint3
 	if (make_class) {
 		// ensure the MonoClass for the GINST is constructed and recorded as traversed.
 		k = mono_class_from_mono_type_at_level (t, MONO_CLASS_READY_BAREBONES);
-		barebones_indent();
-		printf (": preloading typespec 0x%08x klass ", typespec_token);
-		barebones_printf_class(k);
-		barebones_push();
+		BAREBONES(barebones_indent());
+		BAREBONES(printf (": preloading typespec 0x%08x klass ", typespec_token));
+		BAREBONES(barebones_printf_class(k));
+		BAREBONES(barebones_push());
 		mono_class_preload_class (k);
-		barebones_pop();
+		BAREBONES(barebones_pop());
 	} else {
 		//preload_visit_mono_type (t);
 	}
@@ -990,19 +990,20 @@ preload_visit_typespec (MonoImage *image, MonoGenericContainer *container, uint3
 		t2 = mono_class_inflate_generic_type_checked (make_class ? m_class_get_byval_arg (k) : t, &container->context, inflate_error);
 		mono_error_assert_ok (inflate_error);
 		t = t2;
-		barebones_indent (); printf (": inflated typespec 0x%08x to ", typespec_token);
-		barebones_printf (t);
+		BAREBONES(barebones_indent ());
+		BAREBONES(printf (": inflated typespec 0x%08x to ", typespec_token));
+		BAREBONES(barebones_printf (t));
 	}
 
 	if (make_class) {
 		// ensure the MonoClass for the GINST is constructed and recorded as traversed.
 		k = mono_class_from_mono_type_at_level (t, MONO_CLASS_READY_BAREBONES);
-		barebones_indent();
-		printf (": preloading typespec 0x%08x (2nd) klass ", typespec_token);
-		barebones_printf_class(k);
-		barebones_push();
+		BAREBONES(barebones_indent());
+		BAREBONES(printf (": preloading typespec 0x%08x (2nd) klass ", typespec_token));
+		BAREBONES(barebones_printf_class(k));
+		BAREBONES(barebones_push());
 		mono_class_preload_class (k);
-		barebones_pop();
+		BAREBONES(barebones_pop());
 	} else {
 		preload_visit_mono_type (t);
 	}

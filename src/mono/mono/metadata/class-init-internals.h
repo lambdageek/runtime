@@ -7,6 +7,16 @@
 
 #include <mono/metadata/class.h>
 
+// #define TRACE_BAREBONES
+
+#ifdef TRACE_BAREBONES
+#define BAREBONES(expr) do { expr; } while(0)
+#else
+#define BAREBONES(expr) /* empty */
+#endif
+
+
+
 MonoClass *
 mono_class_create_from_typedef_at_level (MonoImage *image, guint32 type_token, MonoClassReady max_ready_level, MonoError *error);
 
