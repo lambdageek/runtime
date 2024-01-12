@@ -828,12 +828,12 @@ static void
 preload_visit_typeref (MonoImage *image, uint32_t typeref_token)
 {
 	MonoImage *resolved_image = NULL;
-	uint32_t resolved_typedef = 0;
-	if (!preload_resolve_typeref  (image, typeref_token, &resolved_image, &resolved_typedef))
+	uint32_t resolved_typedef_row = 0;
+	if (!preload_resolve_typeref  (image, typeref_token, &resolved_image, &resolved_typedef_row))
 		return;
-	if (!resolved_typedef)
+	if (!resolved_typedef_row)
 		return;
-	preload_visit_typedef (resolved_image, resolved_typedef);
+	preload_visit_typedef (resolved_image, MONO_TOKEN_TYPE_DEF | resolved_typedef_row);
 }
 
 static uint32_t
