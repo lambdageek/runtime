@@ -230,7 +230,15 @@ barebones_printf_ginst(MonoGenericClass *gklass)
 static void
 barebones_printf_msig(MonoMethodSignature *msig)
 {
-	g_assert_not_reached(); // TODO: finish me
+	printf("msig((");
+	for (int i = 0; i < msig->param_count; i++) {
+		barebones_printf_type_switch(msig->params[i]);
+		if (i+1 < msig->param_count)
+			printf(", ");
+	};
+	printf(") -> ");
+	barebones_printf_type_switch(msig->ret);
+	printf(")");
 }
 
 static MonoNativeTlsKey preload_visiting_classes_tls_id;
