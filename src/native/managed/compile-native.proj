@@ -7,7 +7,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <NativeLibsProjectsToBuild Include="$(MSBuildThisFileDirectory)libhellomanaged/src/libhellomanaged.csproj" />
+        <!-- New projects should have src/ and inc/ subdirectories for sources and the downstram consumer header:
+             libHelloWorld/src/libHelloWorld.csproj
+             libHelloWorld/inc/libHelloWorld.h
+        -->
+        <NativeLibsProjectsToBuild Include="$(MSBuildThisFileDirectory)*/src/*.csproj" />
     </ItemGroup>
 
     <PropertyGroup>
