@@ -825,6 +825,7 @@ void EEStartupHelper()
 
         if (!debug_stream::init())
             IfFailGo(E_FAIL);
+        debug_stream::register_basic_types();
 
 #ifdef PROFILING_SUPPORTED
         // Initialize the profiling services.

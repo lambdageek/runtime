@@ -110,6 +110,7 @@ set(CORECLR_LIBRARIES
     coreclrminipal
     gc_pal
     datastream
+    cdac_contract
 )
 
 if(CLR_CMAKE_TARGET_WIN32)

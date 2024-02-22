@@ -57,7 +57,7 @@ bool dnds_init(
 void dnds_destroy(data_stream_context_t*);
 
 // Define a maximum value for the type datatype.
-#define MAX_TYPE_SIZE UINT16_MAX
+#define DNDS_MAX_TYPE_SIZE UINT16_MAX
 
 typedef struct type_details__
 {

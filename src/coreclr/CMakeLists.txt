@@ -138,6 +138,9 @@ endif()
 # Data stream object library that will be linked in to the CLR
 add_subdirectory(${CLR_SRC_NATIVE_DIR}/datastream ${CLR_ARTIFACTS_OBJ_DIR}/datastream)
 
+# cDAC data contract
+add_subdirectory(${CLR_SRC_NATIVE_DIR}/public ${CLR_ARTIFACTS_OBJ_DIR}/public)
+
 #-------------------------------------
 # Include directory directives
 #-------------------------------------
