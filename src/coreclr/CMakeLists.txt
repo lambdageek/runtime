@@ -135,6 +135,9 @@ if(CLR_CMAKE_TARGET_WIN32)
   add_subdirectory(gc/sample)
 endif()
 
+# Data stream object library that will be linked in to the CLR
+add_subdirectory(${CLR_SRC_NATIVE_DIR}/datastream ${CLR_ARTIFACTS_OBJ_DIR}/datastream)
+
 #-------------------------------------
 # Include directory directives
 #-------------------------------------
