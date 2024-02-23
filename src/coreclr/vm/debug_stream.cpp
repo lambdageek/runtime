@@ -11,16 +11,13 @@
 
 namespace
 {
+    data_stream_context_t g_data_streams;
+
 #define BEGIN_TYPE_IDS() type_details_t const g_type_types[] = {
 #define END_TYPE_IDS() };
 #define DEFINE_TYPE_ID(id, v) { dk::MAKE_TYPE_ID(id), v, 0, sizeof(#id), #id },
 #include <cdac/ds_types.h>
-static_assert(dk_Count == ARRAY_SIZE(g_type_types), "All types.h uses should be the same size");
-}
-
-namespace
-{
-    data_stream_context_t g_data_streams;
+    static_assert(dk::dk_Count == ARRAY_SIZE(g_type_types), "All types.h uses should be the same size");
 }
 
 bool debug_stream::init()
@@ -36,13 +33,12 @@ bool debug_stream::init()
     return true;
 }
 
-void define_type(dk::dk_type_t type, size_t total_size, size_t offsets_length = 0, field_offset_t const* offsets)
+void debug_stream::define_type(dk::dk_type_t type, size_t total_size, size_t offsets_length, field_offset_t const* offsets)
 {
-    if (!dnds_define_type(&g_data_streams, &g_type_types[type],  total_size, offsets_length, offsets))
-	abort(); // FIXME
+    _ASSERTE_ALL_BUILDS(dnds_define_type(&g_data_streams, &g_type_types[type],  total_size, offsets_length, offsets));
 }
 
-void register_basic_types()
+void debug_stream::register_basic_types()
 {
-    define_type(dk::MAKE_TYPE_ID(Ptr), sizeof(void*));
+    debug_stream::define_type(dk::MAKE_TYPE_ID(Ptr), sizeof(void*));
 }

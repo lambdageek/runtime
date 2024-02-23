@@ -51,6 +51,9 @@ add_dependencies(cee_wks_mergeable precompiled_asm)
 
 target_compile_definitions(cee_wks_mergeable PUBLIC FEATURE_MERGE_JIT_AND_ENGINE)
 target_compile_definitions(cee_wks_mergeable PUBLIC CORECLR_EMBEDDED)
+target_link_libraries(cee_wks_core PRIVATE cdac_contract)
+target_link_libraries(cee_wks PRIVATE cdac_contract)
+target_link_libraries(cee_wks_mergeable PRIVATE cdac_contract)
 
 if (CLR_CMAKE_HOST_WIN32)
     link_natvis_sources_for_target(cee_wks INTERFACE ../vm.natvis)
