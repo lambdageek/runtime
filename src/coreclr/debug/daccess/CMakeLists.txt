@@ -1,3 +1,5 @@
+find_nativeaot_library(libcdacreader)
+
 add_definitions(-DFEATURE_NO_HOST)
 
 include_directories(BEFORE ${VM_DIR})
@@ -39,6 +41,11 @@ convert_to_absolute_path(DACCESS_SOURCES ${DACCESS_SOURCES})
 
 add_library_clr(daccess ${DACCESS_SOURCES})
 set_target_properties(daccess PROPERTIES DAC_COMPONENT TRUE)
+if ("${libcdacreader_FOUND}")
+  target_sources(daccess PRIVATE cdac.h cdac.cpp)
+  target_link_libraries(daccess PRIVATE libcdacreader::libcdacreader)
+  target_compile_definitions(daccess PRIVATE USE_CDAC)
+endif()
 target_precompile_headers(daccess PRIVATE [["stdafx.h"]])
 
 add_dependencies(daccess eventing_headers)

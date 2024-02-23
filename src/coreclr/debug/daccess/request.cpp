@@ -4947,8 +4947,16 @@ HRESULT ClrDataAccess::GetBreakingChangeVersion(int* pVersion)
     if (pVersion == nullptr)
         return E_INVALIDARG;
 
+#ifdef USE_CDAC
+    SOSDacEnter();
+    HRESULT hr = GetCDAC()->GetBreakingChangeVersion(pVersion);
+    SOSDacLeave();
+    return hr;
+#else
+
     *pVersion = SOS_BREAKING_CHANGE_VERSION;
     return S_OK;
+#endif
 }
 
 HRESULT ClrDataAccess::GetObjectComWrappersData(CLRDATA_ADDRESS objAddr, CLRDATA_ADDRESS *rcw, unsigned int count, CLRDATA_ADDRESS *mowList, unsigned int *pNeeded)

@@ -14,6 +14,10 @@
 #define __DACIMPL_H__
 
 #include "gcinterface.dac.h"
+
+#ifdef USE_CDAC
+#include "cdac.h"
+#endif
 //---------------------------------------------------------------------------------------
 // Setting DAC_HASHTABLE tells the DAC to use the hand rolled hashtable for
 // storing code:DAC_INSTANCE .  Otherwise, the DAC uses the STL unordered_map to.
@@ -1515,6 +1519,16 @@ public:
                                              DWORD &dwSize,
                                              _Out_writes_(cchPath) LPWSTR wszPath,
                                              const DWORD cchPath);
+
+private:
+#ifdef USE_CDAC
+    const CDAC* m_pCDAC;
+#endif
+
+protected:    
+#ifdef USE_CDAC
+    const CDAC* GetCDAC();
+#endif
 };
 
 extern ClrDataAccess* g_dacImpl;

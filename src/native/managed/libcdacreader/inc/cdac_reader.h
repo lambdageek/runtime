@@ -12,7 +12,7 @@ typedef enum cdac_reader_result_t {
 } cdac_reader_result_t;
 
 typedef intptr_t cdac_reader_h;
-typedef uint64_t cdac_reader_foreignptr_t
+typedef uint64_t cdac_reader_foreignptr_t;
 
 cdac_reader_result_t cdac_reader_init(cdac_reader_h *handleOut);
 

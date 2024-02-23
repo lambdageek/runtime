@@ -24,6 +24,10 @@
 #include "primitives.h"
 #include "dbgutil.h"
 
+#ifdef USE_CDAC
+#include "cdac.h"
+#endif
+
 #ifdef USE_DAC_TABLE_RVA
 #include <dactablerva.h>
 #else
@@ -3160,6 +3164,14 @@ ClrDataAccess::~ClrDataAccess(void)
     }
     m_pTarget->Release();
     m_pMutableTarget->Release();
+
+#ifdef USE_CDAC
+    if (m_pCDAC)
+    {
+	delete m_pCDAC;
+	m_pCDAC = nullptr;
+    }
+#endif
 }
 
 STDMETHODIMP
@@ -8496,3 +8508,15 @@ HRESULT DacFreeRegionEnumerator::Init()
 
     return S_OK;
 }
+
+#ifdef USE_CDAC
+const CDAC* ClrDataAccess::GetCDAC()
+{
+    // FIXME: locking?
+    if (!m_pCDAC)
+    {
+	m_pCDAC = CDAC::CreateCDAC();
+    }
+    return m_pCDAC;
+}
+#endif
