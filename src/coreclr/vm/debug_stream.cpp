@@ -1,13 +1,14 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-#include "debug_stream.h"
-#include <minipal/utils.h>
 #include <stdio.h>
-
+#include <minipal/utils.h>
 #ifdef TARGET_UNIX
 #include <pal.h>
 #endif // TARGET_UNIX
+#include <daccess.h>
+
+#include "debug_stream.h"
 
 namespace
 {
@@ -19,6 +20,21 @@ namespace
 #include <cdac/ds_types.h>
     static_assert(dk::dk_Count == ARRAY_SIZE(g_type_types), "All types.h uses should be the same size");
 }
+
+#ifndef DACCESS_COMPILE
+namespace debug_stream
+{
+    namespace priv
+    {
+	// see daccess.h
+	GPTR_DECL(VOID, g_data_streams_ptr);
+    }
+}
+#endif
+
+// see daccess.h
+// HACK: use the existing non-portable DAC mechanisms to find the cDAC streams
+GPTR_IMPL_INIT(VOID, debug_stream::priv::g_data_streams_ptr, &g_data_streams);
 
 bool debug_stream::init()
 {
