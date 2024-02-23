@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(NetCoreAppToolCurrent)</TargetFramework>
+    <Description>Data Contract Reader</Description>
+    <EnableDefaultItems>true</EnableDefaultItems>
+    <Nullable>enable</Nullable>
+    <IncludeSymbols>true</IncludeSymbols>
+    <Serviceable>true</Serviceable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsShipping>true</IsShipping>
+    <!-- this assembly should not produce a public package, rather it's meant to be shipped as part of the runtime -->
+    <IsShippingPackage>false</IsShippingPackage>
+  </PropertyGroup>
+
+  <Import Project="..\..\native-library.props" />
+
+  <Import Project="..\..\native-library.targets" />
+
+</Project>
