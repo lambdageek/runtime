@@ -5506,6 +5506,10 @@ ClrDataAccess::Initialize(void)
     // Do some validation
     IfFailRet(VerifyDlls());
 
+#ifdef USE_CDAC
+    (void)GetCDAC(); // just trigger cDAC initialization
+#endif
+
     return S_OK;
 }
 

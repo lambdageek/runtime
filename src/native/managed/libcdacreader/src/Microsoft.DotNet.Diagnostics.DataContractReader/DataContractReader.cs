@@ -9,6 +9,7 @@ public sealed class DataContractReader : IDisposable
 {
     public DataContractReader()
     {
+        Console.Error.WriteLine("DataContractReader created!");
     }
 
     public void Dispose()

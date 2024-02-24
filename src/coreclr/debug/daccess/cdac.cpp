@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+#include <stdio.h>
 #include <minipal/utils.h>
 #ifdef TARGET_UNIX
 #include <pal.h>
@@ -20,19 +21,23 @@ public:
 const CDAC* CDAC::CreateCDAC()
 {
     // TODO: take the TADDR ClrDataAccess::m_globalBase and the TADDR of m_dacGlobals.g_data_streams_ptr
+    printf ("initializing CDAC - alloc\n");
     CDAC *cdac = new (nothrow) CDAC();
     if (!cdac)
     {
 	return nullptr;
     }
+    printf ("initializing CDAC - call managed\n");
     if (cdac_reader_init (&cdac->m_handle) < 0)
     {
 	return nullptr;
     }
+    printf ("initializing CDAC - set reader\n");
     if (cdac_reader_set_reader_func (cdac->m_handle, &CDACImpl::ReaderCB, cdac) < 0)
     {
 	return nullptr;
     }
+    printf ("initializing CDAC - done\n");
     return cdac;
 }
 
