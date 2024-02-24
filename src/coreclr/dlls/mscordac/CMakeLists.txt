@@ -42,6 +42,13 @@ else(CLR_CMAKE_HOST_WIN32)
 
     if(CLR_CMAKE_HOST_LINUX)
 
+        # See mscordbi/CMakeLists.txt: we want to find dependencies in the same directory as libmscorddac.so
+	#
+	# But also, if we didn't set CMAKE_BUILD_WITH_INSTALL_RPATH cmake seems to propagate our
+	# build-time rpath to mscordbi and overwrites its RPATH
+        set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+	set(CMAKE_INSTALL_RPATH "\$ORIGIN")
+
         # Generate DAC export file with the DAC_ prefix
         generate_exports_file_prefix(${DEF_SOURCES} ${EXPORTS_FILE} DAC_)
 
