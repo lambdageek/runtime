@@ -6,10 +6,16 @@
     <StripSymbols>false</StripSymbols>
   </PropertyGroup>
 
+  <!-- Set the install name or the SONAME of the shared library on Mac and other Unixes, respectively -->
   <PropertyGroup>
     <!-- in net9.0 we can do this -->
     <SharedLibraryInstallName>@rpath/$(MSBuildProjectName).dylib</SharedLibraryInstallName>
   </PropertyGroup>
+  <ItemGroup Condition="'$(TargetsUnix)' == 'true' and ! ('$(TargetsAppleMobile)' == 'true' or '$(TargetsOSX)' == 'true')">
+    <!-- If there is no soname, ld on Linux and some other Unixes will embed the full (build-time!)
+         path to this shared library into any binary that links against it. We don't want that. -->
+    <LinkerArg Include="-Wl,-soname=$(MSBuildProjectName).so" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- passed by compile-native.proj to set - -gcc-toolchain=$(ROOTFS_DIR)/usr -->
