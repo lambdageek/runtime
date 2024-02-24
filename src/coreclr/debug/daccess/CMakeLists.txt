@@ -45,6 +45,7 @@ if ("${libcdacreader_FOUND}")
   target_sources(daccess PRIVATE cdac.h cdac.cpp)
   target_link_libraries(daccess PRIVATE libcdacreader::libcdacreader)
   target_compile_definitions(daccess PRIVATE USE_CDAC)
+  install_clr(TARGETS libcdacreader::libcdacreader DESTINATIONS . sharedFramework COMPONENT debug)
 endif()
 target_precompile_headers(daccess PRIVATE [["stdafx.h"]])
 
