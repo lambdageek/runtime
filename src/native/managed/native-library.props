@@ -8,9 +8,12 @@
 
   <!-- Set the install name or the SONAME of the shared library on Mac and other Unixes, respectively -->
   <PropertyGroup>
-    <!-- in net9.0 we can do this -->
+    <!-- in net9.0 we can do this, but only on mobile apple platforms, not OSX -->
     <SharedLibraryInstallName>@rpath/$(MSBuildProjectName).dylib</SharedLibraryInstallName>
   </PropertyGroup>
+  <ItemGroup Condition="'$(TargetsAppleMobile)' == 'true' or '$(TargetsOSX)' == 'true'">
+      <LinkerArg Include="-Wl,-install_name,@rpath/$(MSBuildProjectName).dylib" />
+  </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' == 'true' and ! ('$(TargetsAppleMobile)' == 'true' or '$(TargetsOSX)' == 'true')">
     <!-- If there is no soname, ld on Linux and some other Unixes will embed the full (build-time!)
          path to this shared library into any binary that links against it. We don't want that. -->
