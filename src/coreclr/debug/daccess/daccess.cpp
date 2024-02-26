@@ -3128,6 +3128,9 @@ ClrDataAccess::ClrDataAccess(ICorDebugDataTarget * pTarget, ICLRDataTarget * pLe
     m_fEnableDllVerificationAsserts = false;
 #endif
 
+#ifdef USE_CDAC
+    m_pCDAC = nullptr;
+#endif
 }
 
 ClrDataAccess::~ClrDataAccess(void)
