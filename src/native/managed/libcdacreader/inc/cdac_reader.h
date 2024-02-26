@@ -6,10 +6,12 @@ extern "C"
 {
 #endif
 
-typedef enum cdac_reader_result_t {
+enum cdac_reader_result_enum {
     CDAC_READER_OK = 0,
     CDAC_READER_EFAIL = -1,
-} cdac_reader_result_t;
+};
+
+typedef int32_t cdac_reader_result_t;
 
 typedef intptr_t cdac_reader_h;
 typedef uint64_t cdac_reader_foreignptr_t;
