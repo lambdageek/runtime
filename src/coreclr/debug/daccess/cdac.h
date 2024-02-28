@@ -6,6 +6,9 @@
 
 #include "cdac_reader.h"
 
+
+class CDACImpl;
+
 class CDAC final /*: public ISOSDacInterface9*/
 {
 public:
@@ -14,7 +17,7 @@ public:
     CDAC(const CDAC&) = delete;
     CDAC& operator=(const CDAC&) = delete;
 private:
-    explicit CDAC();
+    explicit CDAC(CDACImpl *impl);
 
     cdac_reader_result_t Read(cdac_reader_foreignptr_t addr, uint32_t count, uint8_t *dest) const;
 public:
@@ -23,6 +26,7 @@ public:
 
 private:
     cdac_reader_h m_handle;
+    CDACImpl *m_impl;
 
     friend class CDACImpl;
 };
