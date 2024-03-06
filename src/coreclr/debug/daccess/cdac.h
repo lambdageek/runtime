@@ -19,13 +19,11 @@ public:
 private:
     explicit CDAC(CDACImpl *impl);
 
-    cdac_reader_result_t Read(cdac_reader_foreignptr_t addr, uint32_t count, uint8_t *dest) const;
 public:
     /*virtual HRESULT STDMETHODCALLTYPE GetBreakingChangeVersion(int* pVersion);*/ // const correctness
     HRESULT STDMETHODCALLTYPE GetBreakingChangeVersion(int* pVersion) const;
 
 private:
-    cdac_reader_h m_handle;
     CDACImpl *m_impl;
 
     friend class CDACImpl;
