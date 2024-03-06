@@ -1,10 +1,39 @@
 <Project>
   <PropertyGroup>
-    <PublishAot>true</PublishAot>
+    <!-- HACK: use for mac builds until we get codeflow that includes https://github.com/dotnet/runtime/pull/99173 -->
+    <UseInTreeAOT Condition="'$(TargetsOSX)' == 'true'">true</UseInTreeAOT>
+    <PublishAot Condition="'$(UseInTreeAOT)' != 'true'">true</PublishAot>
     <SelfContained>true</SelfContained>
     <!-- the cmake build will strip and save the symbols -->
     <StripSymbols>false</StripSymbols>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(UseInTreeAOT)' == 'true'">
+      <AlekseyBaseDir>$(ArtifactsBinDir)</AlekseyBaseDir>
+      <RuntimeBinDir>$(AlekseyBaseDir)coreclr/$(TargetOS).$(TargetArchitecture).$(RuntimeConfiguration)/</RuntimeBinDir>
+      <LibrariesAllBinArtifactsPath>$(AlekseyBaseDir)runtime/net9.0-$(TargetOS)-$(LibrariesConfiguration)-$(TargetArchitecture)/</LibrariesAllBinArtifactsPath>
+
+      <TargetName>$(MSBuildProjectName)</TargetName>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(UseInTreeAOT)' == 'true'">
+    <IlcPath>$(RuntimeBinDir)/ilc-published/</IlcPath>
+    <IlcSdkPath>$(RuntimeBinDir)/aotsdk/</IlcSdkPath>
+    <IlcToolsPath>$(IlcPath)</IlcToolsPath>
+    <IlcBuildTasksPath>$(IlcToolsPath)/netstandard/ILCompiler.Build.Tasks.dll</IlcBuildTasksPath>
+    <IlcFrameworkPath>$(LibrariesAllBinArtifactsPath)</IlcFrameworkPath>
+    <IlcFrameworkNativePath>$(LibrariesAllBinArtifactsPath)</IlcFrameworkNativePath>
+    <IlcCompileDependsOn>Compile;ComputeIlcCompileInputs;SetupOSSpecificProps;PrepareForILLink</IlcCompileDependsOn>
+  </PropertyGroup>
+
+  <Target Name="_ConfigureIlcFrameworkPaths" BeforeTargets="SetupProperties" Condition="'$(UseInTreeAOT)' == 'true'">
+    <PropertyGroup>
+      <IlcFrameworkPath>$(LibrariesAllBinArtifactsPath)</IlcFrameworkPath>
+      <IlcFrameworkNativePath>$(LibrariesAllBinArtifactsPath)</IlcFrameworkNativePath>
+    </PropertyGroup>
+  </Target>
+
+  <Import Project="$(RuntimeBinDir)/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets" Condition="'$(UseInTreeAOT)' == 'true'"/>
 
   <!-- set the shared library name.  this helps the native linker correctly reference this shared
        library in dependents -->
