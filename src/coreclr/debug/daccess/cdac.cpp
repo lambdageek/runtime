@@ -69,9 +69,13 @@ public:
     {
         rhs.m_module = nullptr;
     }
-    void *GetFn(const char *fn) const
+    bool Valid() const
     {
-        return m_module ? GetProcAddress(m_module, fn) : nullptr;
+	return m_module != nullptr;
+    }
+    FARPROC GetFn(const char *fn) const
+    {
+        return Valid() ? GetProcAddress(m_module, fn) : nullptr;
     }
 private:
     CDACModuleHolder() : m_module(nullptr) {}
