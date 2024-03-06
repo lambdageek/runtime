@@ -12,9 +12,9 @@ find_nativeaot_library(libWhatever REQUIRED)
 
 This will look for a cmake fragment file in
 `artifacts/obj/cmake/find_package/libWhatever-config.cmake` that will import some variables from
-`artifacts/obj/libWhatever/libWhatever.cmake` and defines a new `libWhatever::libWhatever` that can
-be used as a dependency in `target_link_libraries()` or in a `install_clr()` command.
-
+`artifacts/obj/libWhatever/libWhatever.cmake` and defines a new `libWhatever::libs` and
+`libWhatever::headers` targets that can be used as dependencies in `target_link_libraries()`
+properties.
 
 ## Adding a new managed library
 
@@ -32,19 +32,22 @@ item group.
 In `src/native/managed/libMyNewLibrary/src/libMyNewLibrary.csproj`:
 1. Near the top,  add `<Import Project="..\..\native-library.props" />`
 2. Near the bottom, add `<Import Project="..\..\native-library.targets" />`
+3. Define an item `@(InstallRuntimeComponentDest)` that has directory names relative to `artifacts/bin/<runtimeFlavor>/<os.arch.config>/` where the shared library should be installed.  It's a good idea to have at least `.`:
+    ```xml
+      <ItemGroup>
+          <InstallRuntimeComponentDest Include="." />
+          <InstallRuntimeComponentDest Include="sharedFramework" Condition="'$(RuntimeFlavor)' == 'coreclr'"/>
+      </ItemGroup>
+    ```
 
 The following is recommended:
 
 1. The project should be called `libXXXX` - currently the infrastructure expects a `lib` prefix on all platforms.
-2. The project should just have a single `EntryPoints.cs` that has a `static class` that provides
-   `[UnmanagedCallersOnly]` API entrypoints.  The bulk of the code should be imported using
-   `ProjectReference` from another managed class library project.  That managed project can be
-   tested using normal managed unit tests, consumed in other managed libraries, etc.
-3. The `inc` directory if it exists will be added to the include path of any cmake targets that
+2. The `inc` directory if it exists will be added to the include path of any cmake targets that
    depend on the native library. Typically the directory should contain a `libMyNewLibrary.h` header
-   file with a C declaration for each entrypoint.  If you want ot have more include directories, add
-   them all to the `NativeLibraryCmakeFragmentIncludePath` item.  In that case `inc` won't be added
-   by default.
+   file with a C declaration for each `[UnmanagedCallersOnly]` entrypoint.  If you want to have more
+   include directories, add them all to the `NativeLibraryCmakeFragmentIncludePath` item in your
+   `.csproj`.  In that case `inc` won't be added by default.
 
 Limitations:
 

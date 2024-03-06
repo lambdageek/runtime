@@ -366,109 +366,19 @@ function(generate_exports_file_prefix inputFilename outputFilename prefix)
                               PROPERTIES GENERATED TRUE)
 endfunction()
 
-define_property(TARGET PROPERTY CLR_IMPORTED_COPY_TARGET
-  BRIEF_DOCS "set to the COPY_TARGET option that was used to define the target using add_imported_library_clr"
-  FULL_DOCS "set to the COPY_TARGET option that was used to define the target using add_imported_library_clr"
-  "Since imported targets don't have build events, the COPY_TARGET's POST_BUILD event can be used instead")
+function (get_symbol_file_name targetName outputSymbolFilename)
+  if (CLR_CMAKE_HOST_UNIX)
+    if (CLR_CMAKE_TARGET_APPLE)
+      set(strip_destination_file $<TARGET_FILE:${targetName}>.dwarf)
+    else ()
+      set(strip_destination_file $<TARGET_FILE:${targetName}>.dbg)
+    endif ()
 
-# add_imported_library_clr(targetName COPY_TARGET copyTargetName IMPORTED_LOCATION importLocation)
-#
-# same as add_library(targetName SHARED IMPORTED GLOBAL) but it will first copy the library from
-# importLocation into our build tree using the target copyTargetName.  We do this so that we can
-# strip the symbols from the library and place them into a separate symbol file.
-#
-# Incidentally this also makes cmake dependency analysis work correctly: if the imported library
-# changes (for example, if it is built during an earlier stage of our build that cmake can't see,
-# the dependencies of targetName will be rebuilt)
-function(add_imported_library_clr targetName)
-  set(options)
-  set(oneValueArgs COPY_TARGET IMPORTED_LOCATION)
-  set(multiValueArgs)
-  cmake_parse_arguments(PARSE_ARGV 1 opt "${options}" "${oneValueArgs}" "${multiValueArgs}")
-  if ("${opt_COPY_TARGET}" STREQUAL "" OR "${opt_KEYWORDS_MISSING_VALUES}" MATCHES "COPY_TARGET")
-    message(FATAL_ERROR "add_imported_library_clr requires COPY_TARGET option")
-  endif()
-  if ("${opt_IMPORTED_LOCATION}" STREQUAL "" OR "${opt_KEYWORDS_MISSING_VALUES}" MATCHES "IMPORTED_LOCATION")
-    message(FATAL_ERROR "add_imported_library_clr requires IMPORTED_LOCATION option")
-  endif()
-  if (NOT "${opt_UNPARSED_ARGUMENTS}" STREQUAL "")
-    message(FATAL_ERROR "add_imported_library_clr called with unrecognized options ${opt_UNPARSED_ARGUMENTS}")
-  endif()
-
-  # Copy the imported library into our binary dir.
-  # We do this so that we may strip it and also so that cmake dependency tracking will be aware if the file changes
-
-  set(src "${opt_IMPORTED_LOCATION}")
-  cmake_path(GET src FILENAME srcFilename)
-
-  # for namespaced targets replace :: by _ - otherwise the make generator produces a Makefile rule that make doesn't like
-  string(REPLACE "::" "_" destSubdir "${targetName}")
-  set(dest "${CMAKE_CURRENT_BINARY_DIR}/imported_library/${destSubdir}/${srcFilename}")
-  
-  add_custom_command(OUTPUT "${dest}"
-    DEPENDS "${src}"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${src}" "${dest}"
-  )
-
-  if (CLR_CMAKE_HOST_WIN32)
-    cmake_path(REPLACE_EXTENSION opt_IMPORTED_LOCATION ".pdb" OUTPUT_VARIABLE srcPdb)
-    cmake_path(GET srcPdb FILENAME srcPdbFilename)
-    set(destPdb "${CMAKE_CURRENT_BINARY_DIR}/imported_library/${destSubdir}/${srcPdbFilename}")
-
-    add_custom_command(OUTPUT "${destPdb}"
-      DEPENDS "${srcPdb}"
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${srcPdb}" "${destPdb}"
-    )
-  endif()
-
-  if (CLR_CMAKE_HOST_WIN32)
-    add_custom_target("${opt_COPY_TARGET}" DEPENDS "${dest}" "${destPdb}")
-  else()
-    add_custom_target("${opt_COPY_TARGET}" DEPENDS "${dest}")
-  endif()
-
-  add_library(${targetName} SHARED IMPORTED GLOBAL)
-  add_dependencies(${targetName} "${opt_COPY_TARGET}")
-  set_property(TARGET ${targetName} PROPERTY IMPORTED_LOCATION "${dest}")
-  set_property(TARGET ${targetName} PROPERTY CLR_IMPORTED_COPY_TARGET "${opt_COPY_TARGET}")
-
-  strip_symbols(${targetName} symbolFile)
-endfunction()
-
-function(get_symbol_file_name targetName outputSymbolFilename)
-  get_target_property(importedCopyTarget "${targetName}" CLR_IMPORTED_COPY_TARGET) # see add_imported_library_clr
-  if ("${importedCopyTarget}" STREQUAL "importedCopyTarget-NOTFOUND")
-    if (CLR_CMAKE_HOST_UNIX)
-      if (CLR_CMAKE_TARGET_APPLE)
-        set(strip_destination_file $<TARGET_FILE:${targetName}>.dwarf)
-      else ()
-        set(strip_destination_file $<TARGET_FILE:${targetName}>.dbg)
-      endif ()
-
-      set(${outputSymbolFilename} ${strip_destination_file} PARENT_SCOPE)
-    elseif(CLR_CMAKE_HOST_WIN32)
-      # We can't use the $<TARGET_PDB_FILE> generator expression here since
-      # the generator expression isn't supported on resource DLLs.
-      set(${outputSymbolFilename} $<TARGET_FILE_DIR:${targetName}>/$<TARGET_FILE_PREFIX:${targetName}>$<TARGET_FILE_BASE_NAME:${targetName}>.pdb PARENT_SCOPE)
-    endif()
-  else()
-    get_target_property(libraryType "${targetName}" TYPE)
-    message(TRACE "Target ${targetName} is imported of type ${libraryType}")
-    if ("${libraryType}" STREQUAL "SHARED_LIBRARY")
-      get_property(importedLocation TARGET ${targetName} PROPERTY IMPORTED_LOCATION)
-      message(TRACE "Target ${targetName} is imported from  ${importedLocation}")
-      if (CLR_CMAKE_HOST_UNIX)
-        if (CLR_CMAKE_TARGET_APPLE)
-          set(importedLocation "${importedLocation}.dwarf")
-        else()
-          set(importedLocation "${importedLocation}.dbg")
-        endif()
-      elseif(CLR_CMAKE_HOST_WIN32)
-        cmake_path(REPLACE_EXTENSION importedLocation ".pdb")
-      endif()
-      set(${outputSymbolFilename} "${importedLocation}" PARENT_SCOPE)
-      message(TRACE "Target ${targetName} symbols will be in ${importedLocation}")
-    endif()
+    set(${outputSymbolFilename} ${strip_destination_file} PARENT_SCOPE)
+  elseif(CLR_CMAKE_HOST_WIN32)
+    # We can't use the $<TARGET_PDB_FILE> generator expression here since
+    # the generator expression isn't supported on resource DLLs.
+    set(${outputSymbolFilename} $<TARGET_FILE_DIR:${targetName}>/$<TARGET_FILE_PREFIX:${targetName}>$<TARGET_FILE_BASE_NAME:${targetName}>.pdb PARENT_SCOPE)
   endif()
 endfunction()
 
@@ -476,16 +386,7 @@ function(strip_symbols targetName outputFilename)
   get_symbol_file_name(${targetName} strip_destination_file)
   set(${outputFilename} ${strip_destination_file} PARENT_SCOPE)
   if (CLR_CMAKE_HOST_UNIX)
-    get_target_property(copy_target "${targetName}" CLR_IMPORTED_COPY_TARGET)
-    if ("${copy_target}" STREQUAL "copy_target-NOTFOUND")
-      # normal target, we will add the post-build event to it
-      set(strip_source_file $<TARGET_FILE:${targetName}>)
-      set(post_build_target "${targetName}")
-    else()
-      # for an imported library, we will add the post-build event on the copy target
-      get_property(strip_source_file TARGET ${targetName} PROPERTY IMPORTED_LOCATION)
-      set(post_build_target "${copy_target}")
-    endif()
+    set(strip_source_file $<TARGET_FILE:${targetName}>)
 
     if (CLR_CMAKE_TARGET_APPLE)
 
@@ -521,7 +422,7 @@ function(strip_symbols targetName outputFilename)
       endif ()
 
       add_custom_command(
-        TARGET ${post_build_target}
+        TARGET ${targetName}
         POST_BUILD
         VERBATIM
         COMMAND sh -c "echo Stripping symbols from $(basename '${strip_source_file}') into $(basename '${strip_destination_file}')"
@@ -531,7 +432,7 @@ function(strip_symbols targetName outputFilename)
     else (CLR_CMAKE_TARGET_APPLE)
 
       add_custom_command(
-        TARGET ${post_build_target}
+        TARGET ${targetName}
         POST_BUILD
         VERBATIM
         COMMAND sh -c "echo Stripping symbols from $(basename '${strip_source_file}') into $(basename '${strip_destination_file}')"
@@ -632,8 +533,7 @@ function(install_clr)
       endif()
       add_dependencies(${INSTALL_CLR_COMPONENT} ${targetName})
     endif()
-    get_property(hasCopyTarget TARGET "${targetName}" PROPERTY CLR_IMPORTED_COPY_TARGET SET)
-    get_target_property(targetType "${targetName}" TYPE)
+    get_target_property(targetType ${targetName} TYPE)
     if (NOT CLR_CMAKE_KEEP_NATIVE_SYMBOLS AND NOT "${targetType}" STREQUAL "STATIC_LIBRARY")
       get_symbol_file_name(${targetName} symbolFile)
     endif()
@@ -641,17 +541,7 @@ function(install_clr)
     foreach(destination ${destinations})
       # We don't need to install the export libraries for our DLLs
       # since they won't be directly linked against.
-      if (NOT "${hasCopyTarget}")
-        install(PROGRAMS $<TARGET_FILE:${targetName}> DESTINATION ${destination} COMPONENT ${INSTALL_CLR_COMPONENT})
-      elseif("${targetType}" STREQUAL "SHARED_LIBRARY")
-        # for shared libraries added with add_imported_library_clr install the imported artifacts
-
-        if ("${CMAKE_VERSION}" VERSION_LESS "3.21")
-          install(PROGRAMS $<TARGET_PROPERTY:${targetName},IMPORTED_LOCATION> DESTINATION ${destination} COMPONENT ${INSTALL_CLR_COMPONENT})
-        else()
-          install(IMPORTED_RUNTIME_ARTIFACTS ${targetName} DESTINATION ${destination} COMPONENT ${INSTALL_CLR_COMPONENT})
-        endif()
-      endif()
+      install(PROGRAMS $<TARGET_FILE:${targetName}> DESTINATION ${destination} COMPONENT ${INSTALL_CLR_COMPONENT})
       if (NOT "${symbolFile}" STREQUAL "")
         install_symbol_file(${symbolFile} ${destination} COMPONENT ${INSTALL_CLR_COMPONENT})
       endif()
@@ -777,10 +667,8 @@ endfunction()
 #
 # Imports a native library produced by NativeAOT (see src/native/managed).
 # If the library is found, sets libraryName_FOUND to true, else false.
-# If the library is found, a target libraryName::libraryName is defined.
+# If the library is found, it will provide targets libraryName::libs and libraryName::headers.
 # If REQUIRED is specified, it's a fatal error not to find the library, otherwise the library is considered optional.
-#
-# For implementation details see import-nativeaot-library.cmake
 function(find_nativeaot_library libraryName)
   cmake_parse_arguments(PARSE_ARGV 1 "findNativeAOT_opt" "REQUIRED" "" "")
   if (NOT "${findNativeAOT_opt_REQUIRED}")
@@ -789,6 +677,5 @@ function(find_nativeaot_library libraryName)
     find_package(${libraryName} CONFIG REQUIRED NO_DEFAULT_PATH PATHS "${CLR_ARTIFACTS_OBJ_DIR}/cmake/find_package")
   endif()
   set("${libraryName}_FOUND" "${${libraryName}_FOUND}" PARENT_SCOPE)
-  set("${libCmakeName}_CMAKE_FRAGMENT_PATH")
 endfunction()
 
