@@ -22,7 +22,7 @@ typedef cdac_reader_result_t (*cdac_reader_func_t) (cdac_reader_foreignptr_t add
 
 cdac_reader_result_t cdac_reader_set_reader_func(cdac_reader_h handle, cdac_reader_func_t reader, void* user_data);
 
-// cdac_reader_result_t cdac_reader_set_stream(cdac_reader_h handle, cdac_reader_foreignptr_t stream_start);
+cdac_reader_result_t cdac_reader_set_stream(cdac_reader_h handle, cdac_reader_foreignptr_t stream_start);
 
 void cdac_reader_destroy(cdac_reader_h handle);
 

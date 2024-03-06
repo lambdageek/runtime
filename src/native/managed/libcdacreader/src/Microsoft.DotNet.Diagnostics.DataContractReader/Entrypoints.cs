@@ -65,4 +65,18 @@ internal static class Entrypoints
             return Result.EFail;
         }
     }
+
+    [UnmanagedCallersOnly(EntryPoint=CDAC+"set_stream")]
+    private static unsafe Result SetStream(IntPtr handle, ulong data_stream)
+    {
+        try
+        {
+            DataContractReader? reader = Unwrap(handle);
+            reader?.SetStream(data_stream);
+            return Result.Ok;
+        } catch (Exception)
+        {
+            return Result.EFail;
+        }
+    }
 }

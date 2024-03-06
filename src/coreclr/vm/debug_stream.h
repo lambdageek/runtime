@@ -22,13 +22,12 @@ namespace debug_stream
     // HACK: give the DAC a way to find the cDAC streams.
     // This is the wrong way to do this.  In the future we want the data contract reader to find this just
     // by asking the debugger for a well known symbol(?)
-#ifdef DACCESS_COMPILE
     namespace priv
     {
-	GPTR_DECL(VOID, g_data_streams_ptr);
+	GPTR_DECL(BYTE, g_data_streams_ptr);
     }
-#endif
 
+#ifndef DACCESS_COMPILE
     bool init();
 
     void define_type(dk::dk_type_t type, size_t total_size, size_t offsets_length = 0, field_offset_t const* offsets = nullptr);
@@ -44,6 +43,7 @@ namespace debug_stream
     // void record_blob(dk_type_t type, uint16_t size, void* addr);
 
     //void record_instance(dk_type_t type, void* addr);
+#endif // DACCESS_COMPILE
 }
 
 #endif // DEBUG_STREAM_H

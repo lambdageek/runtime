@@ -44,6 +44,7 @@ set_target_properties(daccess PROPERTIES DAC_COMPONENT TRUE)
 
 if(NOT CLR_CROSS_COMPONENTS_BUILD AND "${libcdacreader_FOUND}")
   target_sources(daccess PRIVATE cdac.h cdac.cpp)
+  target_link_libraries(daccess PRIVATE cdac_contract)
   target_link_libraries(daccess PRIVATE libcdacreader::headers)
   target_compile_definitions(daccess PRIVATE USE_CDAC)
 endif()

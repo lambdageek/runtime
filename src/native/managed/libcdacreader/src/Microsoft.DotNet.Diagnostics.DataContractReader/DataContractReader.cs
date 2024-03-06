@@ -22,9 +22,17 @@ public sealed class DataContractReader : IDisposable
         _reader = new ReaderFunc(readerFunc, userData);
     }
 
+    internal void SetStream(ulong data_stream)
+    {
+            _stream = new ForeignPtr(data_stream);
+            Console.WriteLine ("Stream starts at 0x{0:x}", _stream.Value);
+    }
+
     private ReaderFunc _reader;
+    private ForeignPtr _stream;
 
     private ReaderFunc Reader => _reader;
+    private ForeignPtr Stream => _stream;
 
     internal struct RemoteConfig
     {

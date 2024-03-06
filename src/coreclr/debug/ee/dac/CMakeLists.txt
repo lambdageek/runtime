@@ -5,5 +5,6 @@ endif (CLR_CMAKE_TARGET_WIN32)
 
 add_library_clr(cordbee_dac ${CORDBEE_SOURCES_DAC})
 set_target_properties(cordbee_dac PROPERTIES DAC_COMPONENT TRUE)
+target_link_libraries(cordbee_dac PRIVATE cdac_contract)
 target_precompile_headers(cordbee_dac PRIVATE [["stdafx.h"]])
 add_dependencies(cordbee_dac eventing_headers)

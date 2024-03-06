@@ -823,9 +823,12 @@ void EEStartupHelper()
         InitializeDebugger(); // throws on error
 #endif // DEBUGGING_SUPPORTED
 
+#ifndef DACCESS_COMPILE
+        // only init the debug stream in the real runtime.  the DAC will delegate to the cDAC for working with the debug_stream
         if (!debug_stream::init())
             IfFailGo(E_FAIL);
         debug_stream::register_basic_types();
+#endif
 
 #ifdef PROFILING_SUPPORTED
         // Initialize the profiling services.

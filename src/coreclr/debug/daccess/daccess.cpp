@@ -25,6 +25,7 @@
 #include "dbgutil.h"
 
 #ifdef USE_CDAC
+#include "debug_stream.h"
 #include "cdac.h"
 #endif
 
@@ -5510,7 +5511,12 @@ ClrDataAccess::Initialize(void)
     IfFailRet(VerifyDlls());
 
 #ifdef USE_CDAC
-    (void)GetCDAC(); // just trigger cDAC initialization
+    {
+	// FIXME: hack
+	DAC_ENTER();
+	m_pCDAC = CDAC::CreateCDAC(dac_cast<TADDR>(debug_stream::priv::g_data_streams_ptr));
+	DAC_LEAVE();
+    }
 #endif
 
     return S_OK;
@@ -8519,11 +8525,6 @@ HRESULT DacFreeRegionEnumerator::Init()
 #ifdef USE_CDAC
 const CDAC* ClrDataAccess::GetCDAC()
 {
-    // FIXME: locking?
-    if (!m_pCDAC)
-    {
-	m_pCDAC = CDAC::CreateCDAC();
-    }
     return m_pCDAC;
 }
 #endif

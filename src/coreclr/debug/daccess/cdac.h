@@ -12,7 +12,7 @@ class CDACImpl;
 class CDAC final /*: public ISOSDacInterface9*/
 {
 public:
-    static const CDAC* CreateCDAC();
+    static const CDAC* CreateCDAC(TADDR data_stream);
     virtual ~CDAC();
     CDAC(const CDAC&) = delete;
     CDAC& operator=(const CDAC&) = delete;

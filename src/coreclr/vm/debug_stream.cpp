@@ -21,21 +21,16 @@ namespace
     static_assert(dk::dk_Count == ARRAY_SIZE(g_type_types), "All types.h uses should be the same size");
 }
 
-#ifndef DACCESS_COMPILE
-namespace debug_stream
-{
-    namespace priv
-    {
-	// see daccess.h
-	GPTR_DECL(VOID, g_data_streams_ptr);
-    }
-}
-#endif
-
 // see daccess.h
 // HACK: use the existing non-portable DAC mechanisms to find the cDAC streams
-GPTR_IMPL_INIT(VOID, debug_stream::priv::g_data_streams_ptr, &g_data_streams);
+namespace debug_stream
+{
+    namespace priv {
+	GPTR_IMPL_INIT(BYTE, g_data_streams_ptr, reinterpret_cast<BYTE*>(&g_data_streams));
+    }
+}
 
+#ifndef DACCESS_COMPILE
 bool debug_stream::init()
 {
     size_t sizes[] = { 4096, 8192, 2048 };
@@ -58,3 +53,4 @@ void debug_stream::register_basic_types()
 {
     debug_stream::define_type(dk::MAKE_TYPE_ID(Ptr), sizeof(void*));
 }
+#endif /*DACCESS_COMPILE*/

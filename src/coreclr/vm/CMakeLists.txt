@@ -61,6 +61,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     debugdebugger.cpp
     debughelp.cpp
     debuginfostore.cpp
+    debug_stream.cpp
     decodemd.cpp
     disassembler.cpp
     domainassembly.cpp
@@ -310,7 +311,6 @@ set(VM_SOURCES_WKS
     customattribute.cpp
     custommarshalerinfo.cpp
     autotrace.cpp
-    debug_stream.cpp
     dllimport.cpp
     dllimportcallback.cpp
     dynamicinterfacecastable.cpp
@@ -971,6 +971,7 @@ convert_to_absolute_path(VM_SOURCES_WKS_SPECIAL ${VM_SOURCES_WKS_SPECIAL})
 
 add_library_clr(cee_dac ${VM_SOURCES_DAC})
 add_dependencies(cee_dac eventing_headers)
+target_link_libraries(cee_dac PRIVATE cdac_contract)
 set_target_properties(cee_dac PROPERTIES DAC_COMPONENT TRUE)
 target_precompile_headers(cee_dac PRIVATE [["common.h"]])
 

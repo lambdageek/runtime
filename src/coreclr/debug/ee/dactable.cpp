@@ -18,6 +18,7 @@
 #include "../../vm/common.h"
 #include "../../vm/gcenv.h"
 #include "../../vm/ecall.h"
+#include "../../vm/debug_stream.h"
 
 #ifdef DEBUGGING_SUPPORTED
 

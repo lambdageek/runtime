@@ -240,5 +240,7 @@ DEFINE_DACVAR(bool, dac__g_metadataUpdatesApplied, ::g_metadataUpdatesApplied)
 
 DEFINE_DACVAR(PTR_WSTR, dac__g_EntryAssemblyPath, ::g_EntryAssemblyPath)
 
+DEFINE_DACVAR(PTR_BYTE, dac__g_data_streams_ptr, ::debug_stream::priv::g_data_streams_ptr)
+
 #undef DEFINE_DACVAR
 #undef DEFINE_DACVAR_NO_DUMP

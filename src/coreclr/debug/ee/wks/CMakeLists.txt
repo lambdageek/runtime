@@ -36,5 +36,6 @@ else ()
 
 endif (CLR_CMAKE_TARGET_WIN32)
 
+target_link_libraries(cordbee_wks PRIVATE cdac_contract)
 target_precompile_headers(cordbee_wks PRIVATE [["stdafx.h"]])
 add_dependencies(cordbee_wks eventing_headers)

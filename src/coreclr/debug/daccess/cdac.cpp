@@ -127,6 +127,7 @@ public:
     cdac_reader_result_t Read(cdac_reader_foreignptr_t addr, uint32_t count, uint8_t *dest) const;
 
     cdac_reader_result_t SetReader() const;
+    cdac_reader_result_t SetStream(TADDR data_stream) const;
 private:
     CDACModuleLifetime m_module;
     cdac_reader_h m_handle;
@@ -144,7 +145,7 @@ private:
     FILE* m_file;
 };
 
-const CDAC* CDAC::CreateCDAC()
+const CDAC* CDAC::CreateCDAC(TADDR data_stream)
 {
 #ifndef TARGET_UNIX
     FILE *f = fopen ("E:\\cdac.log", "a+"); // FIXME: remove this
@@ -178,8 +179,17 @@ const CDAC* CDAC::CreateCDAC()
         return nullptr;
     }
     fprintf (f, "initializing CDAC - set reader\n");
-    if ((err = impl->SetReader()) != CDAC_READER_OK) {
+    if ((err = impl->SetReader()) != CDAC_READER_OK)
+    {
 	fprintf (f, "cdac_reader_set_reader_func failed 0x%08x\n", err);
+	delete impl;
+	return nullptr;
+    }
+    fprintf (f, "initializing CDAC - set stream\n");
+    if ((err = impl->SetStream(data_stream)) != CDAC_READER_OK)
+    {
+	fprintf (f, "cdac_reader_set_stream failed 0x%08x\n", err);
+	delete impl;
 	return nullptr;
     }
     fprintf (f, "initializing CDAC - done\n");
@@ -216,10 +226,21 @@ namespace
 cdac_reader_result_t CDACImpl::SetReader () const
 {
     auto fn = m_module.GetFn("cdac_reader_set_reader_func");
-    if (!fn) {
+    if (!fn)
+    {
 	return CDAC_READER_EFAIL;
     }
     return reinterpret_cast<cdac_reader_result_t(*)(cdac_reader_h, cdac_reader_func_t, void*)>(fn)(m_handle, &ReaderCB, reinterpret_cast<void*>(const_cast<CDACImpl*>(this)));
+}
+
+cdac_reader_result_t CDACImpl::SetStream(TADDR data_stream) const
+{
+    auto fn = m_module.GetFn("cdac_reader_set_stream");
+    if (!fn)
+    {
+	return CDAC_READER_EFAIL;
+    }
+    return reinterpret_cast<cdac_reader_result_t(*)(cdac_reader_h, cdac_reader_foreignptr_t)>(fn)(m_handle, static_cast<cdac_reader_foreignptr_t>(data_stream));
 }
 
 cdac_reader_result_t CDACImpl::Read(cdac_reader_foreignptr_t addr, uint32_t count, uint8_t *dest) const
