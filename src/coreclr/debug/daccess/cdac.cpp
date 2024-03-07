@@ -3,9 +3,6 @@
 
 #include <stdio.h>
 #include <minipal/utils.h>
-#ifdef TARGET_UNIX
-#include <pal.h>
-#endif // TARGET_UNIX
 #include <sospriv.h>
 #include <sstring.h>
 #include <clrhost.h>
