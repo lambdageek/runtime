@@ -11,8 +11,23 @@
 #include "cdac.h"
 
 namespace {
-static HRESULT
-LoadCDACLibrary(HMODULE *phCDAC)
+static HRESULT GetCurrentModuleFolderPath(PathString &folderPath)
+{
+    HRESULT hr = E_FAIL;
+    if (GetClrModulePathName(folderPath) && !folderPath.IsEmpty())
+    {
+        SString::Iterator iter = folderPath.End();
+        BOOL findSep = folderPath.FindBack(iter, DIRECTORY_SEPARATOR_CHAR_W);
+        if (findSep)
+        {
+            folderPath.Truncate(iter + 1);
+            hr = S_OK;
+        }
+    }
+    return hr;
+}
+
+static HRESULT LoadCDACLibrary(HMODULE *phCDAC)
 {
 #ifndef HOST_UNIX
     LPCWSTR pwzCDACName = MAKEDLLNAME_W(W("libcdacreader"));
@@ -23,22 +38,15 @@ LoadCDACLibrary(HMODULE *phCDAC)
 
     // Load JIT from next to CoreCLR binary
     PathString CoreClrFolderHolder;
-    if (GetClrModulePathName(CoreClrFolderHolder) && !CoreClrFolderHolder.IsEmpty())
+    if (SUCCEEDED (GetCurrentModuleFolderPath(CoreClrFolderHolder)))
     {
-        SString::Iterator iter = CoreClrFolderHolder.End();
-        BOOL findSep = CoreClrFolderHolder.FindBack(iter, DIRECTORY_SEPARATOR_CHAR_W);
-        if (findSep)
+        CoreClrFolderHolder.Append(pwzCDACName);
+        *phCDAC = CLRLoadLibrary(CoreClrFolderHolder.GetUnicode());
+        if (*phCDAC != NULL)
         {
-            SString sCDACName(pwzCDACName);
-            CoreClrFolderHolder.Replace(iter + 1, CoreClrFolderHolder.End() - (iter + 1), sCDACName);
-
-            *phCDAC = CLRLoadLibrary(CoreClrFolderHolder.GetUnicode());
-            if (*phCDAC != NULL)
-            {
-                hr = S_OK;
-            }
+            hr = S_OK;
         }
-   }
+    }
     return hr;
 }
 
@@ -76,7 +84,7 @@ public:
         return Valid() ? GetProcAddress(m_module, fn) : nullptr;
     }
 
-    cdac_reader_result_t ReaderInit(cdac_reader_h *handle) const
+    cdac_reader_result_t ReaderInit(const char *folderPath, cdac_reader_h *handle) const
     {
         if (!handle)
             return CDAC_READER_EFAIL;
@@ -85,7 +93,7 @@ public:
         {
             return CDAC_READER_EFAIL;
         }
-        return reinterpret_cast<cdac_reader_result_t (*)(cdac_reader_h*)>(fn)(handle);
+        return reinterpret_cast<decltype(&cdac_reader_init)>(fn)(folderPath, handle);
     }
 
 private:
@@ -190,8 +198,15 @@ const CDAC* CDAC::CreateCDAC(TADDR data_stream, ICorDebugDataTarget* target)
     cdac_reader_result_t err = CDAC_READER_OK;
     cdac_reader_h handle = 0;
 
+    PathString folderPath;
+    if (FAILED(GetCurrentModuleFolderPath(folderPath)))
+    {
+        fprintf(f, "initializing CDAC - failed to get current module folder path\n");
+        return nullptr;
+    }
+
     fprintf (f, "initializing CDAC - call managed\n");
-    if ((err = module.ReaderInit(&handle)) != CDAC_READER_OK)
+    if ((err = module.ReaderInit(folderPath.GetUTF8(), &handle)) != CDAC_READER_OK)
     {
         fprintf(f, "cdac_reader_init failed 0x%08x\n", err);
         return nullptr;

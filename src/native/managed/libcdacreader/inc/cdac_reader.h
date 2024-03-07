@@ -16,7 +16,7 @@ typedef int32_t cdac_reader_result_t;
 typedef intptr_t cdac_reader_h;
 typedef uint64_t cdac_reader_foreignptr_t;
 
-cdac_reader_result_t cdac_reader_init(cdac_reader_h *handleOut);
+cdac_reader_result_t cdac_reader_init(const char *ownBaseDir, cdac_reader_h *handleOut);
 
 typedef cdac_reader_result_t (*cdac_reader_func_t) (cdac_reader_foreignptr_t addr, uint32_t count, void* user_data, uint8_t *dest);
 

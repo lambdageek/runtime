@@ -71,7 +71,6 @@ public sealed class DataContractReader : IDisposable
 
         Console.WriteLine ("target is {0}", isLittleEndian ? "LE" : "BE");
 
-#if HELPERS_AS_DIRECT_PINVOKE
         ForeignU32 magic = _reader.ReadU32(_stream);
 
         DataStream.ds_validate_t endian = DataStream.dnds_validate(magic.Value);
@@ -109,7 +108,6 @@ public sealed class DataContractReader : IDisposable
 
             handle.Free();
         }
-#endif
     }
 
     [UnmanagedCallersOnly]

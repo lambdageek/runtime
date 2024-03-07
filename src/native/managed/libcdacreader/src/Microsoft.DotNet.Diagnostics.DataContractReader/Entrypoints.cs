@@ -23,10 +23,12 @@ internal static class Entrypoints
     }
 
     [UnmanagedCallersOnly(EntryPoint=CDAC+"init")]
-    private static unsafe Result Init(IntPtr *handleOut)
+    private static unsafe Result Init(byte* ownBaseDir, IntPtr* handleOut)
     {
         try
         {
+            ReadOnlySpan<byte> ownBaseDirSpan = MemoryMarshal.CreateReadOnlySpanFromNullTerminated(ownBaseDir);
+            DataStream.SetDllImportResolver(ownBaseDirSpan);
             DataContractReader reader = new();
             GCHandle handle = GCHandle.Alloc(reader);
             *handleOut = GCHandle.ToIntPtr(handle);
@@ -79,8 +81,9 @@ internal static class Entrypoints
             reader.SetStream(data_stream);
             return Result.Ok;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Console.WriteLine("set_stream failed due to {0}", ex);
             return Result.EFail;
         }
     }
