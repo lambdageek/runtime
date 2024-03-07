@@ -62,7 +62,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <DefaultCoreClrSubsets>clr.native+linuxdac+clr.corelib+clr.tools+clr.nativecorelib+clr.packages+clr.nativeaotlibs+clr.crossarchtools+host.native</DefaultCoreClrSubsets>
+    <DefaultCoreClrSubsets>clr.native+linuxdac+clr.corelib+clr.tools+clr.nativecorelib+clr.packages+clr.nativeaotlibs+clr.cdac+clr.crossarchtools+host.native</DefaultCoreClrSubsets>
     <DefaultCoreClrSubsets Condition="'$(PackageRID)' == 'linux-armel'">clr.native+linuxdac+clr.corelib+clr.tools+clr.nativecorelib+clr.packages+clr.nativeaotlibs+clr.crossarchtools</DefaultCoreClrSubsets>
     <!-- Even on platforms that do not support the CoreCLR runtime, we still want to build ilasm/ildasm. -->
     <DefaultCoreClrSubsets Condition="'$(PrimaryRuntimeFlavor)' != 'CoreCLR'">clr.iltools+clr.packages</DefaultCoreClrSubsets>
@@ -147,6 +147,7 @@
     <SubsetName Include="Clr.Tools" Description="Managed tools that support CoreCLR development and testing." />
     <SubsetName Include="Clr.ToolsTests" OnDemand="true" Description="Unit tests for the clr.tools subset." />
     <SubsetName Include="Clr.Packages" Description="The projects that produce NuGet packages for the CoreCLR runtime, crossgen, and IL tools." />
+    <SubsetName Include="Clr.CDac" Description="The cDAC for the CoreCLR .NET runtime." />
     <SubsetName Include="LinuxDac" Condition="$([MSBuild]::IsOsPlatform(Windows))" Description="The cross-OS Windows->libc-based Linux DAC. Skipped on x86." />
     <SubsetName Include="AlpineDac" Condition="$([MSBuild]::IsOsPlatform(Windows))" OnDemand="true" Description="The cross-OS Windows->musl-libc-based Linux DAC. Skipped on x86" />
     <SubsetName Include="CrossDacPack" OnDemand="true"
@@ -254,6 +255,10 @@
     <ClrRuntimeBuildSubsets>$(ClrRuntimeBuildSubsets);ClrSpmiSubset=true</ClrRuntimeBuildSubsets>
   </PropertyGroup>
 
+  <PropertyGroup Condition="$(_subset.Contains('+clr.cdac+'))">
+    <ClrRuntimeBuildSubsets>$(ClrRuntimeBuildSubsets);ClrCDacSubset=true</ClrRuntimeBuildSubsets>
+  </PropertyGroup>
+
   <ItemGroup Condition="'$(ClrRuntimeBuildSubsets)' != '' or $(_subset.Contains('+clr.nativeprereqs+'))">
     <ProjectToBuild Include="$(CoreClrProjectRoot)runtime-prereqs.proj" Category="clr" GlobalPropertiesToRemove="$(NativeBuildPartitionPropertiesToRemove)" />
   </ItemGroup>
@@ -299,6 +304,12 @@
                             BuildSubdirectory=unsanitized"
       UndefineProperties="EnableNativeSanitizers"
       Category="clr" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$(_subset.Contains('+clr.cdac+'))">
+    <ProjectToBuild Include="$(RepoRoot)\src\native\managed\compile-native.proj"
+        AdditionalProperties="%(AdditionalProperties);ObjectLibrariesRoot=$(CoreCLRArtifactsPath)"
+        Category="clr"/>
   </ItemGroup>
 
   <ItemGroup Condition="$(_subset.Contains('+clr.paltestlist+'))">

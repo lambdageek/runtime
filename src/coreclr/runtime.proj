@@ -63,6 +63,7 @@
       <_CoreClrBuildArg Condition="'$(ClrSpmiSubset)' == 'true'" Include="-component spmi" />
       <_CoreClrBuildArg Condition="'$(ClrCrossComponentsSubset)' == 'true'" Include="-component crosscomponents" />
       <_CoreClrBuildArg Condition="'$(ClrDebugSubset)' == 'true'" Include="-component debug" />
+      <_CoreClrBuildArg Condition="'$(ClrCDacSubset)' == 'true'" Include="-component cdac" />
     </ItemGroup>
 
     <ItemGroup Condition="'$(TargetsAppleMobile)' == 'true'">
