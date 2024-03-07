@@ -5512,11 +5512,10 @@ ClrDataAccess::Initialize(void)
 
 #ifdef USE_CDAC
     {
-	// FIXME: hack
-	DAC_ENTER();
-	m_pCDAC = CDAC::CreateCDAC(dac_cast<TADDR>(debug_stream::priv::g_data_streams_ptr),
-				   m_pTarget);
-	DAC_LEAVE();
+        // FIXME: hack
+        DAC_ENTER();
+        m_pCDAC = CDAC::CreateCDAC(dac_cast<TADDR>(debug_stream::priv::g_data_streams_ptr), m_pTarget);
+        DAC_LEAVE();
     }
 #endif
 
@@ -8526,6 +8525,9 @@ HRESULT DacFreeRegionEnumerator::Init()
 #ifdef USE_CDAC
 const CDAC* ClrDataAccess::GetCDAC()
 {
+    // if (!m_pCDAC)
+    //     m_pCDAC = CDAC::CreateCDAC(dac_cast<TADDR>(debug_stream::priv::g_data_streams_ptr), m_pTarget);
+
     return m_pCDAC;
 }
 #endif

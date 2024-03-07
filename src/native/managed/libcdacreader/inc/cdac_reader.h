@@ -26,6 +26,9 @@ cdac_reader_result_t cdac_reader_set_stream(cdac_reader_h handle, cdac_reader_fo
 
 void cdac_reader_destroy(cdac_reader_h handle);
 
+// [TODO: cDAC] This is currently just for initial testing getting data from the stream
+cdac_reader_result_t cdac_reader_get_breaking_change_version(cdac_reader_h handle, int* version);
+
 #ifdef __cplusplus
 }
 #endif

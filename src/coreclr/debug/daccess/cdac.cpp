@@ -81,8 +81,8 @@ public:
 
     cdac_reader_result_t ReaderInit(cdac_reader_h *handle) const
     {
-	if (!handle)
-	    return CDAC_READER_EFAIL;
+        if (!handle)
+            return CDAC_READER_EFAIL;
         auto fn = GetFn("cdac_reader_init");
         if (!fn)
         {
@@ -91,15 +91,6 @@ public:
         return reinterpret_cast<cdac_reader_result_t (*)(cdac_reader_h*)>(fn)(handle);
     }
 
-    void ReaderDestroy(cdac_reader_h handle) const
-    {
-	if (handle) {
-	    auto fn = GetFn("cdac_reader_destroy");
-	    if (fn) {
-		reinterpret_cast<void(*)(cdac_reader_h)>(fn)(handle);
-	    }
-	}
-    }
 private:
     CDACModuleLifetime() : m_module(nullptr) {}
     CDACModuleLifetime(HMODULE module) : m_module(module) {}
@@ -110,31 +101,64 @@ private:
 
 class CDACImpl final {
 public:
-    explicit CDACImpl(CDACModuleLifetime&& module, cdac_reader_h handle, ICorDebugDataTarget *pDataTarget) :
-	m_module(std::move(module)), m_handle(handle), m_pDataTarget(pDataTarget) {}
+    explicit CDACImpl(CDACModuleLifetime&& module, cdac_reader_h handle, ICorDebugDataTarget* target)
+        : m_module(std::move(module))
+        , m_handle{handle}
+        , m_target{target}
+    {
+        m_init = reinterpret_cast<decltype(&cdac_reader_init)>(m_module.GetFn("cdac_reader_init"));
+        m_setReaderFunc = reinterpret_cast<decltype(&cdac_reader_set_reader_func)>(m_module.GetFn("cdac_reader_set_reader_func"));
+        m_setStream = reinterpret_cast<decltype(&cdac_reader_set_stream)>(m_module.GetFn("cdac_reader_set_stream"));
+        m_destroy = reinterpret_cast<decltype(&cdac_reader_destroy)>(m_module.GetFn("cdac_reader_destroy"));
+        m_getBreakingChangeVersion = reinterpret_cast<decltype(&cdac_reader_get_breaking_change_version)>(m_module.GetFn("cdac_reader_get_breaking_change_version"));
+    }
+
     CDACImpl(const CDACImpl&) = delete;
     CDACImpl& operator=(CDACImpl&) = delete;
-    CDACImpl(CDACImpl&& other) :
-	m_module(std::move(other.m_module)), m_handle{other.m_handle},
-	m_pDataTarget{other.m_pDataTarget}
+
+    CDACImpl(CDACImpl&& other)
+        : m_module(std::move(other.m_module))
+        , m_handle{other.m_handle}
+        , m_target{other.m_target}
+        , m_init{other.m_init}
+        , m_setReaderFunc{other.m_setReaderFunc}
+        , m_setStream{other.m_setStream}
+        , m_destroy{other.m_destroy}
+        , m_getBreakingChangeVersion{other.m_getBreakingChangeVersion}
     {
-	other.m_handle = 0;
+    	other.m_handle = 0;
+        other.m_target = nullptr;
     }
 public:
-    ~CDACImpl() {
-	if (m_handle)
-	{
-	    m_module.ReaderDestroy(m_handle);
-	}
+    ~CDACImpl()
+    {
+        if (m_handle)
+            m_destroy(m_handle);
     }
-    cdac_reader_result_t Read(cdac_reader_foreignptr_t addr, uint32_t count, uint8_t *dest) const;
 
+    cdac_reader_result_t Read(cdac_reader_foreignptr_t addr, uint32_t count, uint8_t *dest) const;
     cdac_reader_result_t SetReader() const;
     cdac_reader_result_t SetStream(TADDR data_stream) const;
+    cdac_reader_result_t GetBreakingChangeVersion(int* version) const
+    {
+        if (m_getBreakingChangeVersion == nullptr)
+            return CDAC_READER_EFAIL;
+
+        return m_getBreakingChangeVersion(m_handle, version);
+    }
+
 private:
     CDACModuleLifetime m_module;
     cdac_reader_h m_handle;
-    ICorDebugDataTarget *m_pDataTarget;
+    ICorDebugDataTarget* m_target;
+
+private:
+    decltype(&cdac_reader_init) m_init;
+    decltype(&cdac_reader_set_reader_func) m_setReaderFunc;
+    decltype(&cdac_reader_set_stream) m_setStream;
+    decltype(&cdac_reader_destroy) m_destroy;
+    decltype(&cdac_reader_get_breaking_change_version) m_getBreakingChangeVersion;
+
 };
 
 class FileHolder
@@ -149,10 +173,10 @@ private:
     FILE* m_file;
 };
 
-const CDAC* CDAC::CreateCDAC(TADDR data_stream, ICorDebugDataTarget *pDataTarget)
+const CDAC* CDAC::CreateCDAC(TADDR data_stream, ICorDebugDataTarget* target)
 {
 #ifndef TARGET_UNIX
-    FILE *f = fopen ("E:\\cdac.log", "a+"); // FIXME: remove this
+    FILE *f = fopen ("C:\\repos\\helloworld\\cdac.log", "a+"); // FIXME: remove this
     FileHolder fh {f};
 #else
     FILE *f = stderr;
@@ -168,42 +192,47 @@ const CDAC* CDAC::CreateCDAC(TADDR data_stream, ICorDebugDataTarget *pDataTarget
     }
     cdac_reader_result_t err = CDAC_READER_OK;
     cdac_reader_h handle = 0;
-    
+
     fprintf (f, "initializing CDAC - call managed\n");
-    if ((err = module.ReaderInit(&handle)) != CDAC_READER_OK) {
-	fprintf(f, "cdac_reader_init failed 0x%08x\n", err);
-	return nullptr;
-    }
-    fprintf(f, "initializing CDAC reader: GCHandle %p\n", (void*)handle);
-    
-    CDACImpl tmp{std::move(module), handle, pDataTarget};
-    CDACImpl *impl = new (nothrow) CDACImpl{std::move(tmp)};
-    if (!impl)
+    if ((err = module.ReaderInit(&handle)) != CDAC_READER_OK)
     {
+        fprintf(f, "cdac_reader_init failed 0x%08x\n", err);
         return nullptr;
     }
+    fprintf(f, "initializing CDAC reader: GCHandle %p\n", (void*)handle);
+
+    CDACImpl tmp{std::move(module), handle, target};
+    CDACImpl *impl = new (nothrow) CDACImpl{std::move(tmp)};
+    if (!impl)
+        return nullptr;
+
     fprintf (f, "initializing CDAC - set reader\n");
     if ((err = impl->SetReader()) != CDAC_READER_OK)
     {
-	fprintf (f, "cdac_reader_set_reader_func failed 0x%08x\n", err);
-	delete impl;
-	return nullptr;
+        fprintf (f, "cdac_reader_set_reader_func failed 0x%08x\n", err);
+        delete impl;
+        return nullptr;
     }
+
     fprintf (f, "initializing CDAC - set stream\n");
     if ((err = impl->SetStream(data_stream)) != CDAC_READER_OK)
     {
-	fprintf (f, "cdac_reader_set_stream failed 0x%08x\n", err);
-	delete impl;
-	return nullptr;
+        fprintf (f, "cdac_reader_set_stream failed 0x%08x\n", err);
+        delete impl;
+        return nullptr;
     }
+
     fprintf (f, "initializing CDAC - done\n");
     CDAC *cdac = new (nothrow) CDAC(impl);
     if (!cdac)
     {
-	delete impl;
+        delete impl;
         return nullptr;
     }
+
     impl = nullptr;
+
+    fprintf (f, "initializing CDAC - done\n");
     return cdac;
 }
 
@@ -229,38 +258,36 @@ namespace
 
 cdac_reader_result_t CDACImpl::SetReader () const
 {
-    auto fn = m_module.GetFn("cdac_reader_set_reader_func");
-    if (!fn)
-    {
-	return CDAC_READER_EFAIL;
-    }
-    return reinterpret_cast<cdac_reader_result_t(*)(cdac_reader_h, cdac_reader_func_t, void*)>(fn)(m_handle, &ReaderCB, reinterpret_cast<void*>(const_cast<CDACImpl*>(this)));
+    if (m_setReaderFunc == nullptr)
+        return CDAC_READER_EFAIL;
+
+    return m_setReaderFunc(m_handle, &ReaderCB, reinterpret_cast<void*>(const_cast<CDACImpl*>(this)));
 }
 
 cdac_reader_result_t CDACImpl::SetStream(TADDR data_stream) const
 {
-    auto fn = m_module.GetFn("cdac_reader_set_stream");
-    if (!fn)
-    {
-	return CDAC_READER_EFAIL;
-    }
-    return reinterpret_cast<cdac_reader_result_t(*)(cdac_reader_h, cdac_reader_foreignptr_t)>(fn)(m_handle, static_cast<cdac_reader_foreignptr_t>(data_stream));
+    if (m_setStream == nullptr)
+        return CDAC_READER_EFAIL;
+
+    return m_setStream(m_handle, data_stream);
 }
 
 cdac_reader_result_t CDACImpl::Read(cdac_reader_foreignptr_t addr, uint32_t count, uint8_t *dest) const
 {
     // FIXME: comment in dbgutil.cpp says ReadFromDataTarget throws
     fprintf(stderr, "reading %d bytes from %p\n", (int)count, (void*)addr);
-    HRESULT hr = ReadFromDataTarget(m_pDataTarget, static_cast<ULONG64>(addr), static_cast<BYTE*>(dest), static_cast<ULONG32>(count));
-    if (SUCCEEDED(hr))
-	return CDAC_READER_OK;
-    else
-	return CDAC_READER_EFAIL;
+    HRESULT hr = ReadFromDataTarget(m_target, static_cast<ULONG64>(addr), static_cast<BYTE*>(dest), static_cast<ULONG32>(count));
+    if (FAILED(hr))
+        return CDAC_READER_EFAIL;
+
+    return CDAC_READER_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CDAC::GetBreakingChangeVersion(int* pVersion) const
 {
-    // cdac_reader_QueryInterface_ISOSDacInterface9()->get_breaking_change_version(handle)
-    *pVersion = SOS_BREAKING_CHANGE_VERSION;
+    auto result = m_impl->GetBreakingChangeVersion(pVersion);
+    if (result != CDAC_READER_OK)
+        return E_FAIL;
+
     return S_OK;
 }

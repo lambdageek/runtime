@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 
 namespace Microsoft.DotNet.Diagnostics.DataContractReader;
@@ -67,14 +68,43 @@ internal static class Entrypoints
     }
 
     [UnmanagedCallersOnly(EntryPoint=CDAC+"set_stream")]
-    private static unsafe Result SetStream(IntPtr handle, ulong data_stream)
+    private static unsafe Result SetStream(IntPtr handle, nuint data_stream)
     {
         try
         {
             DataContractReader? reader = Unwrap(handle);
-            reader?.SetStream(data_stream);
+            if (reader == null)
+                return Result.EFail;
+
+            reader.SetStream(data_stream);
             return Result.Ok;
-        } catch (Exception)
+        }
+        catch (Exception)
+        {
+            return Result.EFail;
+        }
+    }
+
+    // [TODO: cDAC] This is currently just for initial testing getting data from the stream
+    [UnmanagedCallersOnly(EntryPoint = CDAC + "get_breaking_change_version")]
+    private static unsafe Result GetBreakingChangeVersion(IntPtr handle, int* version)
+    {
+        try
+        {
+            DataContractReader? reader = Unwrap(handle);
+            if (reader == null)
+                return Result.EFail;
+
+            // Should be ID based on remote/local ID mapping for SOSBreakingChangeVersion
+            ushort id = 1;
+            Span<byte> blob = reader.GetBlob(id);
+            *version = reader.Config.IsLittleEndian
+                ? BinaryPrimitives.ReadInt32LittleEndian(blob)
+                : BinaryPrimitives.ReadInt32BigEndian(blob);
+
+            return Result.Ok;
+        }
+        catch (Exception)
         {
             return Result.EFail;
         }
