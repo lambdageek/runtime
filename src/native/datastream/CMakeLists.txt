@@ -7,7 +7,8 @@ set(DATASTREAM_SOURCES
 
 add_library(datastream OBJECT ${DATASTREAM_SOURCES})
 
-add_library(datastreamlib SHARED ${DATASTREAM_SOURCES})
+# FIXME: don't use add_library_clr when building for mono
+add_library_clr(datastreamlib SHARED ${DATASTREAM_SOURCES})
 target_compile_options(datastreamlib PRIVATE -DBUILD_SHARED_LIBRARY)
 
 if(CLR_CMAKE_TARGET_WIN32)
