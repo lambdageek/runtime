@@ -138,10 +138,12 @@ public sealed class DataContractReader : IDisposable
     }
 
     [UnmanagedCallersOnly]
-    private static unsafe void FreeMemory(DataStream.memory_reader_t* _, nuint len, void* data)
+#pragma warning disable IDE0060 // Remove unused parameter
+    private static unsafe void FreeMemory(DataStream.memory_reader_t* _, nuint _len, void* data)
     {
         NativeMemory.Free(data);
     }
+#pragma warning restore IDE0060 // Remove unused parameter
 
     private ReaderFunc _reader;
     private ForeignPtr _stream;

@@ -21,6 +21,7 @@ internal static unsafe partial class DataStream
         dsv_big_endian,
     }
 
+#pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
     internal struct memory_reader_t
     {
         public delegate* unmanaged<memory_reader_t*, IntPtr, nuint*, void**, byte> read_ptr;
@@ -28,6 +29,7 @@ internal static unsafe partial class DataStream
 
         public void* context;
     }
+#pragma warning restore CS0649
 
     [LibraryImport(DataStreamLibrary)]
     internal static partial ds_validate_t dnds_validate(uint magic);
