@@ -1,4 +1,4 @@
-find_nativeaot_library(libcdacreader)
+add_subdirectory(${CLR_SRC_NATIVE_DIR}/managed/libcdacreader/cmake ${CLR_ARTIFACTS_OBJ_DIR}/libcdacreader)
 
 add_definitions(-DFEATURE_NO_HOST)
 
@@ -42,12 +42,11 @@ convert_to_absolute_path(DACCESS_SOURCES ${DACCESS_SOURCES})
 add_library_clr(daccess ${DACCESS_SOURCES})
 set_target_properties(daccess PROPERTIES DAC_COMPONENT TRUE)
 
-if(NOT CLR_CROSS_COMPONENTS_BUILD AND "${libcdacreader_FOUND}")
-  target_sources(daccess PRIVATE cdac.h cdac.cpp)
-  target_link_libraries(daccess PRIVATE cdac_contract)
-  target_link_libraries(daccess PRIVATE libcdacreader::headers)
-  target_compile_definitions(daccess PRIVATE USE_CDAC)
-endif()
+# FIXME: this is possibly broken for crossdac? (but it should work, in theory) verify
+target_sources(daccess PRIVATE cdac.h cdac.cpp)
+target_link_libraries(daccess PRIVATE cdac_contract libcdacreader_api)
+target_compile_definitions(daccess PRIVATE USE_CDAC) #TODO: make this a feature flag
+
 target_precompile_headers(daccess PRIVATE [["stdafx.h"]])
 
 add_dependencies(daccess eventing_headers)
