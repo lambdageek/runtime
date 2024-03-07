@@ -5514,7 +5514,8 @@ ClrDataAccess::Initialize(void)
     {
 	// FIXME: hack
 	DAC_ENTER();
-	m_pCDAC = CDAC::CreateCDAC(dac_cast<TADDR>(debug_stream::priv::g_data_streams_ptr));
+	m_pCDAC = CDAC::CreateCDAC(dac_cast<TADDR>(debug_stream::priv::g_data_streams_ptr),
+				   m_pTarget);
 	DAC_LEAVE();
     }
 #endif

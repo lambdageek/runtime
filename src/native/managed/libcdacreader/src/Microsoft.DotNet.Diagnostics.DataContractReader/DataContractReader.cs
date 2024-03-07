@@ -7,6 +7,9 @@ namespace Microsoft.DotNet.Diagnostics.DataContractReader;
 
 public sealed class DataContractReader : IDisposable
 {
+    public const int Magic = 0x646e6300;
+    public static readonly ReadOnlyMemory<byte> MagicBE = new byte[] {0x64, 0x6e, 0x63, 0x00};
+    public static readonly ReadOnlyMemory<byte> MagicLE = new byte[] {0x00, 0x63, 0x6e, 0x64};
     public DataContractReader()
     {
         Console.Error.WriteLine("DataContractReader created!");
@@ -24,8 +27,25 @@ public sealed class DataContractReader : IDisposable
 
     internal void SetStream(ulong data_stream)
     {
-            _stream = new ForeignPtr(data_stream);
-            Console.WriteLine ("Stream starts at 0x{0:x}", _stream.Value);
+        _stream = new ForeignPtr(data_stream);
+        Console.WriteLine ("Stream starts at 0x{0:x}", Stream.Value);
+        // TODO: move to a ValidateContext() function
+        Span<byte> magic = stackalloc byte[4];
+        if (!Reader.Read(Stream, magic)) {
+            throw new Exception("couldn't read magic");
+        }
+        bool isLittleEndian;
+        if (magic.SequenceEqual(MagicLE.Span))
+        {
+            isLittleEndian = true;
+        } else if (magic.SequenceEqual(MagicBE.Span))
+        {
+            isLittleEndian = false;
+        } else {
+            Console.WriteLine ("Expected magic, got 0x{0:x} 0x{1:x} 0x{2:x} 0x{3:x}", magic[0], magic[1], magic[2], magic[3]);
+            throw new Exception ("incorrect magic value");
+        }
+        Console.WriteLine ("target is {0}", isLittleEndian ? "LE" : "BE");
     }
 
     private ReaderFunc _reader;

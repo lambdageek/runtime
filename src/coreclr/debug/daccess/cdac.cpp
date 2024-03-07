@@ -9,6 +9,7 @@
 #include <sospriv.h>
 #include <sstring.h>
 #include <clrhost.h>
+#include "dbgutil.h"
 #include "cdac_reader.h"
 #include "cdac.h"
 
@@ -109,11 +110,13 @@ private:
 
 class CDACImpl final {
 public:
-    explicit CDACImpl(CDACModuleLifetime&& module, cdac_reader_h handle) :
-	m_module(std::move(module)), m_handle(handle) {}
+    explicit CDACImpl(CDACModuleLifetime&& module, cdac_reader_h handle, ICorDebugDataTarget *pDataTarget) :
+	m_module(std::move(module)), m_handle(handle), m_pDataTarget(pDataTarget) {}
     CDACImpl(const CDACImpl&) = delete;
     CDACImpl& operator=(CDACImpl&) = delete;
-    CDACImpl(CDACImpl&& other) : m_module(std::move(other.m_module)), m_handle{other.m_handle}
+    CDACImpl(CDACImpl&& other) :
+	m_module(std::move(other.m_module)), m_handle{other.m_handle},
+	m_pDataTarget{other.m_pDataTarget}
     {
 	other.m_handle = 0;
     }
@@ -131,6 +134,7 @@ public:
 private:
     CDACModuleLifetime m_module;
     cdac_reader_h m_handle;
+    ICorDebugDataTarget *m_pDataTarget;
 };
 
 class FileHolder
@@ -145,7 +149,7 @@ private:
     FILE* m_file;
 };
 
-const CDAC* CDAC::CreateCDAC(TADDR data_stream)
+const CDAC* CDAC::CreateCDAC(TADDR data_stream, ICorDebugDataTarget *pDataTarget)
 {
 #ifndef TARGET_UNIX
     FILE *f = fopen ("E:\\cdac.log", "a+"); // FIXME: remove this
@@ -172,7 +176,7 @@ const CDAC* CDAC::CreateCDAC(TADDR data_stream)
     }
     fprintf(f, "initializing CDAC reader: GCHandle %p\n", (void*)handle);
     
-    CDACImpl tmp{std::move(module), handle};
+    CDACImpl tmp{std::move(module), handle, pDataTarget};
     CDACImpl *impl = new (nothrow) CDACImpl{std::move(tmp)};
     if (!impl)
     {
@@ -245,7 +249,13 @@ cdac_reader_result_t CDACImpl::SetStream(TADDR data_stream) const
 
 cdac_reader_result_t CDACImpl::Read(cdac_reader_foreignptr_t addr, uint32_t count, uint8_t *dest) const
 {
-    return CDAC_READER_EFAIL; // TODO: implement me
+    // FIXME: comment in dbgutil.cpp says ReadFromDataTarget throws
+    fprintf(stderr, "reading %d bytes from %p\n", (int)count, (void*)addr);
+    HRESULT hr = ReadFromDataTarget(m_pDataTarget, static_cast<ULONG64>(addr), static_cast<BYTE*>(dest), static_cast<ULONG32>(count));
+    if (SUCCEEDED(hr))
+	return CDAC_READER_OK;
+    else
+	return CDAC_READER_EFAIL;
 }
 
 HRESULT STDMETHODCALLTYPE CDAC::GetBreakingChangeVersion(int* pVersion) const
