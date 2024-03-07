@@ -14,7 +14,7 @@ namespace {
 static HRESULT
 LoadCDACLibrary(HMODULE *phCDAC)
 {
-#ifndef TARGET_UNIX
+#ifndef HOST_UNIX
     LPCWSTR pwzCDACName = MAKEDLLNAME_W(W("libcdacreader"));
 #else
     LPCWSTR pwzCDACName = MAKEDLLNAME_W(W("cdacreader"));
