@@ -38,10 +38,9 @@ namespace debug_stream
         define_type(type, total_size, C, offsets);
     }
 
+    void record_blob(dk::dk_type_t type, uint16_t size, void* addr);
+
     void register_basic_types();
-
-    // void record_blob(dk_type_t type, uint16_t size, void* addr);
-
     //void record_instance(dk_type_t type, void* addr);
 #endif // DACCESS_COMPILE
 }

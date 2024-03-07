@@ -43,10 +43,13 @@ BEGIN_TYPE_IDS()
     /* DEFINE_TYPE_ID(StackPointer, 1) */
     /* DEFINE_TYPE_ID(ReturnAddress, 1) */
 
+    // Data
+    DEFINE_TYPE_ID(SOSBreakingChangeVersion, 1)
+
     /* // Specific types */
     /* DEFINE_TYPE_ID(RuntimeBaseAddress, 1) */
 
-    /* DEFINE_TYPE_ID(ThreadStore, 1) */
+    DEFINE_TYPE_ID(ThreadStore, 1)
     /* DEFINE_TYPE_ID(ThreadList, 1) */
     /* DEFINE_TYPE_ID(Thread, 1) */
     /* DEFINE_TYPE_ID(ThreadState, 1) */
