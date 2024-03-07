@@ -9,6 +9,16 @@
 #include <stdbool.h>
 #include <assert.h>
 
+#ifdef BUILD_SHARED_LIBRARY
+#ifdef _MSC_VER
+#define DATA_STREAM_EXPORT __declspec(dllexport)
+#else
+#define DATA_STREAM_EXPORT __attribute__ ((visibility ("default")))
+#endif // _MSC_VER
+#else
+#define DATA_STREAM_EXPORT
+#endif // BUILD_SHARED_LIBRARY
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -37,7 +47,7 @@ typedef enum
 } ds_validate_t;
 
 // Validate the magic number is valid
-ds_validate_t dnds_validate(uint32_t magic);
+DATA_STREAM_EXPORT ds_validate_t dnds_validate(uint32_t magic);
 
 // Determine if the data stream is big or little endian.
 bool dnds_is_big_endian(data_stream_context_t*);
@@ -135,7 +145,7 @@ typedef bool(*on_next_blob)(
     void* user_defined);
 
 // Enumerate all blobs in the data stream
-bool dnds_enum_blobs(
+DATA_STREAM_EXPORT bool dnds_enum_blobs(
     data_stream_context_t*,
     on_next_blob on_next,
     void* user_defined,

@@ -87,7 +87,7 @@ typedef struct stream_entry__
 }
 #endif // __cplusplus
 
-EXTERN_C ds_validate_t dnds_validate(uint32_t m)
+EXTERN_C DATA_STREAM_EXPORT ds_validate_t dnds_validate(uint32_t m)
 {
     if (memcmp(&m, big_endian, sizeof(big_endian)) == 0)
     {
@@ -605,7 +605,7 @@ static bool enum_blobs(
     return true;
 }
 
-EXTERN_C bool dnds_enum_blobs(
+EXTERN_C DATA_STREAM_EXPORT bool dnds_enum_blobs(
     data_stream_context_t* cxt,
     on_next_blob on_next,
     void* user_defined,
