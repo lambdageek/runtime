@@ -13,6 +13,20 @@
     <IsShippingPackage>false</IsShippingPackage>
   </PropertyGroup>
 
+  <!-- Statically link in data stream when building Release.
+       NativeAOT runtime libs only link against Release libs, so for Debug, we will use a dynamically loaded library
+       instead of statically linking these libraries -->
+  <PropertyGroup Condition="'$(RuntimeConfiguration)' == 'Release'">
+    <DefineConstants>$(DefineConstants);HELPERS_AS_DIRECT_PINVOKE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(RuntimeConfiguration)' == 'Release'" >
+    <DirectPInvoke Include="datastream" />
+    <NativeLibrary Include="datastream.obj" Condition="'$(TargetsWindows)' == 'true'" />
+    <NativeLibrary Include="datastream.o" Condition="'$(TargetsWindows)' != 'true'" />
+
+    <LinkerArg Include="/LIBPATH:$(ObjectLibrariesRoot)\datastream" />
+  </ItemGroup>
+
   <Import Project="..\..\native-library.props" />
 
   <ItemGroup>
