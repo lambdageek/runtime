@@ -35,8 +35,6 @@
     </PropertyGroup>
   </Target>
 
-  <Import Project="$(RuntimeBinDir)/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets" Condition="'$(UseInTreeAOT)' == 'true'"/>
-
   <!-- set the shared library name.  this helps the native linker correctly reference this shared
        library in dependents -->
   <PropertyGroup>

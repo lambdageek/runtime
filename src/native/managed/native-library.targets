@@ -1,5 +1,8 @@
 <Project>
 
+    <Import Project="$(RuntimeBinDir)/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets" Condition="'$(UseInTreeAOT)' == 'true'"/>
+
+
     <!-- strip the library the same way as the cmake build for coreclr does it:
          - on mac, leave a .dylib.dwarf file next to the library.
          - on linux leave a .so.dbg file next to to the library
