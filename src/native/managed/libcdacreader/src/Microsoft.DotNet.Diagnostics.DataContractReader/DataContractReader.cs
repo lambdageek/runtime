@@ -11,7 +11,7 @@ namespace Microsoft.DotNet.Diagnostics.DataContractReader;
 
 public sealed class DataContractReader : IDisposable
 {
-    public const int Magic = 0x646e6300;
+    public const uint Magic = 0x646e6300u;
     public static readonly ReadOnlyMemory<byte> MagicBE = new byte[] {0x64, 0x6e, 0x63, 0x00};
     public static readonly ReadOnlyMemory<byte> MagicLE = new byte[] {0x00, 0x63, 0x6e, 0x64};
 
@@ -23,7 +23,7 @@ public sealed class DataContractReader : IDisposable
     }
 
     private TypeDetails Details { get; } = new TypeDetails();
-    internal RemoteConfig Config { get; private set; }
+    public RemoteConfig Config { get; private set; }
 
     public DataContractReader()
     {
@@ -43,12 +43,12 @@ public sealed class DataContractReader : IDisposable
         return blob;
     }
 
-    internal unsafe void SetReaderFunc(delegate* unmanaged<ulong, uint, IntPtr, byte*, int> readerFunc, IntPtr userData)
+    public unsafe void SetReaderFunc(delegate* unmanaged<ulong, uint, IntPtr, byte*, int> readerFunc, IntPtr userData)
     {
         _reader = new ReaderFunc(readerFunc, userData);
     }
 
-    internal unsafe void SetStream(nuint dataStreamAddress)
+    public unsafe void SetStream(nuint dataStreamAddress)
     {
         _stream = new ForeignPtr(dataStreamAddress);
         Console.WriteLine ("Stream starts at 0x{0:x}", Stream.Value);
@@ -71,6 +71,13 @@ public sealed class DataContractReader : IDisposable
 
         Console.WriteLine ("target is {0}", isLittleEndian ? "LE" : "BE");
 
+#if false
+        // FIXME: for testing only
+        Config = new RemoteConfig()
+        {
+            IsLittleEndian = isLittleEndian
+        };
+#else
         ForeignU32 magic = _reader.ReadU32(_stream);
 
         DataStream.ds_validate_t endian = DataStream.dnds_validate(magic.Value);
@@ -108,6 +115,7 @@ public sealed class DataContractReader : IDisposable
 
             handle.Free();
         }
+#endif
     }
 
     [UnmanagedCallersOnly]
@@ -149,14 +157,14 @@ public sealed class DataContractReader : IDisposable
     private ReaderFunc Reader => _reader;
     private ForeignPtr Stream => _stream;
 
-    internal struct RemoteConfig
+    public struct RemoteConfig
     {
         public ForeignPtr StreamStart {get; init;}
         public bool IsLittleEndian {get; init;}
         public int PtrSize {get; init;}
     }
 
-    internal struct ForeignPtr
+    public struct ForeignPtr
     {
         public readonly nuint Value;
         public ForeignPtr(nuint rawValue) { Value = rawValue; }
