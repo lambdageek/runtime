@@ -17,4 +17,4 @@ else()
   install(FILES $<TARGET_OBJECTS:datastream> DESTINATION datastream COMPONENT cdac RENAME datastream.o)
 endif()
 
-install_clr(TARGETS datastreamlib DESTINATIONS . sharedFramework COMPONENT cdac)
+install_clr(TARGETS datastreamlib DESTINATIONS . COMPONENT cdac)

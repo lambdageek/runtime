@@ -86,6 +86,11 @@
       <RuntimeFiles Include="$(CoreCLRArtifactsPath)\corerun*" />
       <RuntimeFiles Include="$(CoreCLRArtifactsPath)\PDB\corerun*" />
     </ItemGroup>
+    <!-- Include separate data stream lib for non-Release runtime (linked into cDAC in Release) -->
+    <ItemGroup Condition="'$(RuntimeConfiguration)' != 'Release'">
+      <RuntimeFiles Include="$(CoreCLRArtifactsPath)\*datastreamlib*" />
+      <RuntimeFiles Include="$(CoreCLRArtifactsPath)\PDB\*datastreamlib*" />
+    </ItemGroup>
     <!-- If the build has native sanitizers, copy over the non-sanitized diagnostic binaries so they can be loaded by a debugger -->
     <ItemGroup Condition="'$(EnableNativeSanitizers)' != ''">
       <RuntimeFiles Remove="$(CoreCLRArtifactsPath)\sharedFramework\*mscordaccore*" />
