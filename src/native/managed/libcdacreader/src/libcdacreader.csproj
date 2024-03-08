@@ -27,13 +27,9 @@
     <LinkerArg Include="/LIBPATH:$(ObjectLibrariesRoot)\datastream" />
   </ItemGroup>
 
-  <Import Project="..\..\native-library.props" />
-
   <ItemGroup>
-      <InstallRuntimeComponentDest Include="." />
-      <InstallRuntimeComponentDest Include="sharedFramework" Condition="'$(RuntimeFlavor)' == 'coreclr'"/>
+      <InstallRuntimeComponentDestination Include="." />
+      <InstallRuntimeComponentDestination Include="sharedFramework" Condition="'$(RuntimeFlavor)' == 'coreclr'"/>
   </ItemGroup>
-
-  <Import Project="..\..\native-library.targets" />
 
 </Project>
