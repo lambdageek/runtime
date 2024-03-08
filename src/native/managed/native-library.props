@@ -4,7 +4,9 @@
     <UseInTreeAOT Condition="'$(TargetsOSX)' == 'true'">true</UseInTreeAOT>
     <PublishAot Condition="'$(UseInTreeAOT)' != 'true'">true</PublishAot>
     <SelfContained>true</SelfContained>
-    <!-- the cmake build will strip and save the symbols -->
+    <!-- Don't strip symbols NativeAOT's default way. We will strip and save the symbols ourselves,
+         the same way as eng/native/functions.cmake strip_symbols
+    -->
     <StripSymbols>false</StripSymbols>
   </PropertyGroup>
 

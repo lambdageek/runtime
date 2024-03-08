@@ -4,10 +4,10 @@ This directory contains managed libraries that will be compiled using NativeAOT 
 
 ## Adding a new managed library
 
-Add a new subdirectory to `src/native/managed` for your library with a `src` and `inc` subdirectories:
+Add a new subdirectory to `src/native/managed` for your library with a `src`, `inc` and `test` subdirectories:
 
 ``` console
-$ mkdir -p libMyNewLibrary/src libMyNewLibrary/inc
+$ mkdir -p libMyNewLibrary/src libMyNewLibrary/inc libMyNewLibrary/test
 $ dotnet new classlib -n libMyNewLibrary -o libMyNewLibrary/src
 ```
 
@@ -16,13 +16,11 @@ In `src/native/managed/compile-native.proj`, add
 item group.
 
 In `src/native/managed/libMyNewLibrary/src/libMyNewLibrary.csproj`:
-1. Near the top,  add `<Import Project="..\..\native-library.props" />`
-2. Near the bottom, add `<Import Project="..\..\native-library.targets" />`
-3. Define an item `@(InstallRuntimeComponentDest)` that has directory names relative to `artifacts/bin/<runtimeFlavor>/<os.arch.config>/` where the shared library should be installed.  It's a good idea to have at least `.`:
+1. Define an item `@(InstallRuntimeComponentDestination)` that has directory names relative to `artifacts/bin/<runtimeFlavor>/<os.arch.config>/` where the shared library should be installed.  It's a good idea to have at least `.`:
     ```xml
       <ItemGroup>
-          <InstallRuntimeComponentDest Include="." />
-          <InstallRuntimeComponentDest Include="sharedFramework" Condition="'$(RuntimeFlavor)' == 'coreclr'"/>
+          <InstallRuntimeComponentDestination Include="." />
+          <InstallRuntimeComponentDestination Include="sharedFramework" Condition="'$(RuntimeFlavor)' == 'coreclr'"/>
       </ItemGroup>
     ```
 
