@@ -6,6 +6,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Microsoft.DotNet.Diagnostics.DataContractReader;
 
@@ -15,11 +16,21 @@ public sealed class DataContractReader : IDisposable
     public static readonly ReadOnlyMemory<byte> MagicBE = new byte[] {0x64, 0x6e, 0x63, 0x00};
     public static readonly ReadOnlyMemory<byte> MagicLE = new byte[] {0x00, 0x63, 0x6e, 0x64};
 
+    public struct RemoteType
+    {
+        public ushort Type;
+        public ushort Version;
+        public nuint Size;
+        public string Name;
+        public Dictionary<ushort, ushort> OffsetsByType;
+    }
     public struct TypeDetails
     {
         public TypeDetails() { }
 
         public Dictionary<ushort, byte[]> Blobs = new Dictionary<ushort, byte[]>();
+        public Dictionary<ushort, DSType> RemoteIdToLocalId = new Dictionary<ushort, DSType>();
+        public Dictionary<DSType, RemoteType> TypeDetailsByLocalId = new Dictionary<DSType, RemoteType>();
     }
 
     private TypeDetails Details { get; } = new TypeDetails();
@@ -35,9 +46,12 @@ public sealed class DataContractReader : IDisposable
         _reader = default;
     }
 
-    public Span<byte> GetBlob(ushort id)
+    public Span<byte> GetBlob(DSType id)
     {
-        if (!Details.Blobs.TryGetValue(id, out byte[]? blob))
+        if (!Details.TypeDetailsByLocalId.TryGetValue(id, out RemoteType typeDetails))
+            throw new InvalidOperationException("Unknown ID");
+
+        if (!Details.Blobs.TryGetValue(typeDetails.Type, out byte[]? blob))
             throw new InvalidOperationException("Blob not found");
 
         return blob;
@@ -107,15 +121,63 @@ public sealed class DataContractReader : IDisposable
             reader.free_ptr = &FreeMemory;
             reader.context = readerFunc;
 
-            // [TODO: cDAC] Enumerate types and instances
+            // [TODO: cDAC] Enumerate instances
 
+            Dictionary<string, RemoteType> typeDetailsByName = [];
+            var typeDetailsByNameHandle = GCHandle.Alloc(typeDetailsByName);
             var handle = GCHandle.Alloc(this);
-            if (!DataStream.dnds_enum_blobs(cxtPtr, &OnNextBlob, GCHandle.ToIntPtr(handle), &reader))
-                throw new InvalidOperationException("Failed to enumerate blobs");
+            try
+            {
+                if (!DataStream.dnds_enum_types(cxtPtr, &OnNextType, GCHandle.ToIntPtr(typeDetailsByNameHandle), &reader))
+                    throw new InvalidOperationException("Failed to enumerate types");
 
-            handle.Free();
+                foreach (DSType dsType in Enum.GetValues<DSType>())
+                {
+                    if (!typeDetailsByName.TryGetValue(dsType.ToString(), out RemoteType typeDetails))
+                        continue;
+
+                    Details.RemoteIdToLocalId[typeDetails.Type] = dsType;
+                    Details.TypeDetailsByLocalId[dsType] = typeDetails;
+                }
+
+                if (!DataStream.dnds_enum_blobs(cxtPtr, &OnNextBlob, GCHandle.ToIntPtr(handle), &reader))
+                    throw new InvalidOperationException("Failed to enumerate blobs");
+            }
+            finally
+            {
+                typeDetailsByNameHandle.Free();
+                handle.Free();
+            }
         }
 #endif
+    }
+
+    [UnmanagedCallersOnly]
+    private static unsafe byte OnNextType(DataStream.type_details_t* details, nuint size, nuint offsetsLen, DataStream.field_offset_t* offsets, IntPtr user_data)
+    {
+        GCHandle handle = GCHandle.FromIntPtr(user_data);
+        Dictionary<string, RemoteType>? typeDetailsByName = handle.Target as Dictionary<string, RemoteType>;
+        if (typeDetailsByName == null)
+            throw new InvalidOperationException("Invalid handle");
+
+        Dictionary<ushort, ushort> offsetsByType = [];
+        for (nuint i = 0; i < offsetsLen; i++)
+        {
+            offsetsByType[offsets[i].type] = offsets[i].offset;
+        }
+
+        // Name without the null terminator
+        string name = Encoding.UTF8.GetString(details->name, details->name_len - 1);
+        typeDetailsByName[name] = new RemoteType
+        {
+            Type = details->type,
+            Version = details->version,
+            Size = size,
+            Name = name,
+            OffsetsByType = offsetsByType
+        };
+
+        return 1;
     }
 
     [UnmanagedCallersOnly]

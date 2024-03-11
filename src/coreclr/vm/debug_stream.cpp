@@ -57,11 +57,13 @@ void debug_stream::register_basic_types()
     // Types
     debug_stream::define_type(dk::MAKE_TYPE_ID(Ptr), sizeof(void*));
     debug_stream::define_type(dk::MAKE_TYPE_ID(ThreadStore), sizeof(ThreadStore));
+
     // Data
-    intptr_t version_data[]
+    uint32_t version_data[]
     {
         SOS_BREAKING_CHANGE_VERSION
     };
-    debug_stream::record_blob(dk::MAKE_TYPE_ID(SOSBreakingChangeVersion), sizeof(uint32_t), version_data);
+    debug_stream::define_type(dk::MAKE_TYPE_ID(SOSBreakingChangeVersion), sizeof(version_data));
+    debug_stream::record_blob(dk::MAKE_TYPE_ID(SOSBreakingChangeVersion), sizeof(version_data), version_data);
 }
 #endif /*DACCESS_COMPILE*/

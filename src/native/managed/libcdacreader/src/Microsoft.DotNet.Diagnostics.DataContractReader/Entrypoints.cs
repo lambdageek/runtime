@@ -98,9 +98,7 @@ internal static class Entrypoints
             if (reader == null)
                 return Result.EFail;
 
-            // Should be ID based on remote/local ID mapping for SOSBreakingChangeVersion
-            ushort id = 1;
-            Span<byte> blob = reader.GetBlob(id);
+            Span<byte> blob = reader.GetBlob(DSType.SOSBreakingChangeVersion);
             *version = reader.Config.IsLittleEndian
                 ? BinaryPrimitives.ReadInt32LittleEndian(blob)
                 : BinaryPrimitives.ReadInt32BigEndian(blob);

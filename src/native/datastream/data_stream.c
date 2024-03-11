@@ -341,7 +341,7 @@ EXTERN_C DATA_STREAM_EXPORT ds_bool dnds_define_type(
     curr += sizeof(total_size);
     memcpy(curr, offsets, offsets_bytes);
     curr += offsets_bytes;
-    assert(entry->offset_next == (curr - (uint8_t*)entry));
+    assert(entry->offset_next == (uint32_t)(curr - (uint8_t*)entry));
     return true;
 }
 
@@ -375,7 +375,7 @@ EXTERN_C DATA_STREAM_EXPORT ds_bool dnds_record_instance(
     curr += sizeof(type);
     memcpy(curr, &inst, sizeof(inst));
     curr += sizeof(inst);
-    assert(entry->offset_next == (curr - (uint8_t*)entry));
+    assert(entry->offset_next == (uint32_t)(curr - (uint8_t*)entry));
     return true;
 }
 
@@ -403,7 +403,7 @@ EXTERN_C DATA_STREAM_EXPORT ds_bool dnds_record_blob(
     curr += sizeof(size);
     memcpy(curr, inst, size);
     curr += size;
-    assert(entry->offset_next == (curr - (uint8_t*)entry));
+    assert(entry->offset_next == (uint32_t)(curr - (uint8_t*)entry));
     return true;
 }
 
@@ -516,7 +516,7 @@ static bool enum_type(
     return true;
 }
 
-EXTERN_C DATA_STREAM_EXPORT ds_bool dnds_enum_type(
+EXTERN_C DATA_STREAM_EXPORT ds_bool dnds_enum_types(
     data_stream_context_t* cxt,
     on_next_type on_next,
     void* user_defined,

@@ -29,10 +29,33 @@ internal static unsafe partial class DataStream
 
         public void* context;
     }
+
+    public struct type_details_t
+    {
+        public ushort type;
+        public ushort version;
+        public ushort reserved; // Must be zero
+        public ushort name_len; // Includes null
+        public byte* name;
+    }
+
+    public struct field_offset_t
+    {
+        public ushort offset;
+        public ushort type;
+    }
 #pragma warning restore CS0649
 
     [LibraryImport(DataStreamLibrary)]
     internal static partial ds_validate_t dnds_validate(uint magic);
+
+    [LibraryImport(DataStreamLibrary)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    internal static partial bool dnds_enum_types(
+        void* cxt,
+        delegate* unmanaged<type_details_t*, nuint, nuint, field_offset_t*, IntPtr, byte> on_next,
+        IntPtr user_data,
+        memory_reader_t* reader);
 
     [LibraryImport(DataStreamLibrary)]
     [return: MarshalAs(UnmanagedType.I1)]

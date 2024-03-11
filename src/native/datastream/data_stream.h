@@ -134,7 +134,7 @@ typedef ds_bool(*on_next_type)(
     void* user_defined);
 
 // Enumerate the types in the data stream
-DATA_STREAM_EXPORT ds_bool dnds_enum_type(
+DATA_STREAM_EXPORT ds_bool dnds_enum_types(
     data_stream_context_t*,
     on_next_type on_next,
     void* user_defined,
