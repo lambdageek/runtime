@@ -16,7 +16,7 @@ public class VirtualMemorySystem
     private readonly bool _oppositeEndian;
     private readonly int _pointerSize; // in bytes
     private readonly ulong _maxPointerValue;
-    private readonly SortedSet<IVirtualMemoryRange> _ranges = new(); // sorted by start address
+    private readonly SortedSet<IVirtualMemoryRangeOwner> _ranges = new(); // sorted by start address
 
     // this is a pointer the way it would be viewed in memory from the outside
     // this is an opaque representation and can't be used for pointer arithmetic
@@ -42,7 +42,7 @@ public class VirtualMemorySystem
     }
 
     // reserve the low addresses so it's never valid to read from them
-    public class NullPage : IVirtualMemoryRange
+    public class NullPage : IVirtualMemoryRangeOwner
     {
         public ulong Start => 0;
         public ulong Count => 0x1000;
@@ -105,9 +105,9 @@ public class VirtualMemorySystem
         return ToExternalPtr(ToInternalPtr(pointerValue) + count);
     }
 
-    internal void AddRange(IVirtualMemoryRange range)
+    internal void AddRange(IVirtualMemoryRangeOwner rangeOwner)
     {
-        _ranges.Add(range);
+        _ranges.Add(rangeOwner);
     }
 
 

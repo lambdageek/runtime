@@ -8,7 +8,8 @@ using System.Runtime.InteropServices;
 
 namespace Microsoft.DotNet.Diagnostics.DataContractReader.Tests.Virtual;
 
-public interface IVirtualMemoryRange : IComparable<IVirtualMemoryRange>
+// Represents a range of virtual memory
+public interface IVirtualMemoryRange
 {
     // The start address of the range, in the system's logical address space
     ulong Start { get; }
@@ -29,7 +30,13 @@ public interface IVirtualMemoryRange : IComparable<IVirtualMemoryRange>
         return !DoesNotIntersect(first, second);
     }
 
-    int IComparable<IVirtualMemoryRange>.CompareTo(IVirtualMemoryRange? other)
+
+}
+
+// Represents a range of virtual memory that is owned by a particular subsystem - can be added to the overall VirutlaMemorySystem.
+public interface IVirtualMemoryRangeOwner : IVirtualMemoryRange, IComparable<IVirtualMemoryRangeOwner>
+{
+    int IComparable<IVirtualMemoryRangeOwner>.CompareTo(IVirtualMemoryRangeOwner? other)
     {
         if (other == null)
             return 1;

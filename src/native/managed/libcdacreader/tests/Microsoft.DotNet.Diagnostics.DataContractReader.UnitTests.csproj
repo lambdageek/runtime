@@ -12,9 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="Virtual\IVirtualMemoryRange.cs" />
-    <Compile Include="Virtual\VirtualMemorySystem.cs" />
-    <Compile Include="Virtual\VirtualDataContext.cs" />
+    <Compile Include="Virtual\*.cs" />
     <Compile Include="Microsoft.DotNet.Diagnostics.DataContractReader.UnitTests.cs" />
   </ItemGroup>
 
