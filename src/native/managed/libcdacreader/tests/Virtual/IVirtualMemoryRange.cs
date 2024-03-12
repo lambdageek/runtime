@@ -30,7 +30,6 @@ public interface IVirtualMemoryRange
         return !DoesNotIntersect(first, second);
     }
 
-
 }
 
 // Represents a range of virtual memory that is owned by a particular subsystem - can be added to the overall VirutlaMemorySystem.

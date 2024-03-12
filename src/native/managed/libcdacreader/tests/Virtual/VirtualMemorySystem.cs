@@ -17,6 +17,7 @@ public class VirtualMemorySystem
     private readonly int _pointerSize; // in bytes
     private readonly ulong _maxPointerValue;
     private readonly SortedSet<IVirtualMemoryRangeOwner> _ranges = new(); // sorted by start address
+    private readonly ReservationSystem _reservationSystem;
 
     // this is a pointer the way it would be viewed in memory from the outside
     // this is an opaque representation and can't be used for pointer arithmetic
@@ -30,6 +31,16 @@ public class VirtualMemorySystem
         public override string ToString() => $"ExternalPtr(0x{Value:x})";
     }
 
+    public struct ExternalSizeT
+    {
+        internal readonly ulong Value;
+        public ExternalSizeT(ulong value)
+        {
+            Value = value;
+        }
+        public override string ToString() => $"ExternalSizeT(0x{Value:x})";
+    }
+
     public VirtualMemorySystem(bool isLittleEndian, int pointerSize)
     {
         if (BitConverter.IsLittleEndian == isLittleEndian)
@@ -38,7 +49,7 @@ public class VirtualMemorySystem
             _oppositeEndian = true;
         _pointerSize = pointerSize;
         _maxPointerValue = (ulong)Math.Pow(2, 8 * pointerSize) - 1;
-
+        _reservationSystem = new ReservationSystem(this);
     }
 
     // reserve the low addresses so it's never valid to read from them
@@ -51,6 +62,8 @@ public class VirtualMemorySystem
             return false;
         }
     }
+
+    public ReservationSystem Reservations => _reservationSystem;
 
     public int PointerSize => _pointerSize;
 
@@ -69,7 +82,7 @@ public class VirtualMemorySystem
     }
 
     // convert an internal pointer to an external view - these are opaque and can't be used for pointer arithmetic
-    ExternalPtr ToExternalPtr(ulong value)
+    public ExternalPtr ToExternalPtr(ulong value)
     {
         if (_oppositeEndian)
         {
@@ -85,7 +98,7 @@ public class VirtualMemorySystem
     }
 
     // convert to the logical address space of the system - it's valid to do pointer arithmetic on these
-    internal ulong ToInternalPtr(ExternalPtr pointerValue)
+    public ulong ToInternalPtr(ExternalPtr pointerValue)
     {
         if (_oppositeEndian)
         {
@@ -100,7 +113,25 @@ public class VirtualMemorySystem
         return pointerValue.Value;
     }
 
-    internal ExternalPtr Advance(ExternalPtr pointerValue, ulong count)
+    public ulong ToInternalSizeT(ExternalSizeT sizeValue)
+    {
+        if (_oppositeEndian)
+        {
+            return BinaryPrimitives.ReverseEndianness(sizeValue.Value);
+        }
+        return sizeValue.Value;
+    }
+
+    public ExternalSizeT ToExternalSizeT(ulong value)
+    {
+        if (_oppositeEndian)
+        {
+            value = BinaryPrimitives.ReverseEndianness(value);
+        }
+        return new ExternalSizeT(value);
+    }
+
+    public ExternalPtr Advance(ExternalPtr pointerValue, ulong count)
     {
         return ToExternalPtr(ToInternalPtr(pointerValue) + count);
     }
@@ -193,6 +224,14 @@ public class VirtualMemorySystem
             WriteUInt64(dest, ToInternalPtr(value));
     }
 
+    internal void WriteExternalSizeT(Span<byte> dest, ExternalSizeT value)
+    {
+        if (PointerSize == 4)
+            WriteUInt32(dest, (uint)ToInternalSizeT(value));
+        else
+            WriteUInt64(dest, ToInternalSizeT(value));
+    }
+
     public ExternalPtr NullPointer => new ExternalPtr(0);
 
 
@@ -251,4 +290,82 @@ public class VirtualMemorySystem
     }
 
 
+    // Allows a virtual memory system to collect a group of memory range builders whose final size is not yet known.
+    // Once all the reservations are made and the builders have been filled, the system will allocate the memory ranges
+    // and notify the builders of their final addresses - allowing them to apply patches to the memory.
+    public class ReservationSystem
+    {
+        private readonly VirtualMemorySystem _virtualMemory;
+        private readonly IList<Reservation> _reservations;
+        public ReservationSystem(VirtualMemorySystem virtualMemory)
+        {
+            _virtualMemory = virtualMemory;
+            _reservations = new List<Reservation>();
+        }
+
+        public Reservation Add()
+        {
+            Reservation reservation = new Reservation();
+            _reservations.Add(reservation);
+            return reservation;
+        }
+
+        public void Complete()
+        {
+            ulong[] starts = new ulong[_reservations.Count];
+            int i = 0;
+            foreach (var reservation in _reservations)
+            {
+                starts[i++] = _virtualMemory.FindFreeAddress(reservation.GetRequestedSize());
+            }
+            i = 0;
+            // once all the addresses are known, announce them
+            foreach (var reservation in _reservations)
+            {
+                reservation.SetStartAddress(_virtualMemory.ToExternalPtr(starts[i++]));
+            }
+            i = 0;
+            // once all the addresses are announced, the builders can apply the patches and add the ranges to the virtual memory system
+            foreach (var reservation in _reservations)
+            {
+                reservation.Complete();
+            }
+            _reservations.Clear();
+        }
+    }
+
+    public class Reservation
+    {
+        private Func<ulong>? _requestedSize;
+        private Action<ExternalPtr>? _setStartAddress;
+        private Action? _complete;
+        public Reservation()
+        {
+        }
+
+        public Reservation OnGetRequetedSize(Func<ulong> requestedSize)
+        {
+            _requestedSize = requestedSize;
+            return this;
+        }
+
+        public ulong GetRequestedSize() => _requestedSize?.Invoke() ?? 0;
+
+        public Reservation OnSetStartAddress(Action<ExternalPtr> setStartAddress)
+        {
+            _setStartAddress = setStartAddress;
+            return this;
+        }
+
+        public void SetStartAddress(ExternalPtr start) => _setStartAddress?.Invoke(start);
+
+        public Reservation OnReservationsComplete(Action complete)
+        {
+            _complete = complete;
+            return this;
+        }
+
+        public void Complete() => _complete?.Invoke();
+    }
 }
+

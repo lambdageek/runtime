@@ -31,6 +31,22 @@ public abstract class VirtualAbstractStream : IVirtualMemoryRange
     public abstract ulong Start { get; protected init; }
     public abstract ulong Count { get; protected init; }
 
+    public abstract VirtualMemorySystem.ExternalSizeT BlockDataSize { get; }
+
+    public abstract VirtualMemorySystem.ExternalSizeT MaxDataSize { get; }
+
     public abstract bool TryReadExtent(ulong start, ulong count, Span<byte> buffer);
 
+    public class MissingStream : VirtualAbstractStream
+    {
+        public MissingStream(VirtualMemorySystem virtualMemory, ushort id) : base(virtualMemory, id, virtualMemory.NullPointer, (ulong)0u) { }
+        public override ulong Start { get; protected init; }
+        public override ulong Count { get; protected init; }
+
+        public override VirtualMemorySystem.ExternalSizeT BlockDataSize => VirtualMemory.ToExternalSizeT((ulong)0u);
+
+        public override VirtualMemorySystem.ExternalSizeT MaxDataSize => VirtualMemory.ToExternalSizeT((ulong)0u);
+
+        public override bool TryReadExtent(ulong start, ulong count, Span<byte> buffer) => false;
+    }
 }

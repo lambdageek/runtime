@@ -25,16 +25,22 @@ public class DatacContractReaderTests
     {
         Virtual.VirtualMemorySystem vms = new(isLittleEndian, pointerSize);
         vms.AddNullPage();
-        Virtual.VirtualMemorySystem.ExternalPtr ptr = vms.MakeExternalPtrRaw(0x1000u);
-        vms.AddRange(Virtual.VirtualDataContext.CreateGoodContext(vms, ptr));
+        var streams = new Virtual.VirtualAbstractStream[3]{
+            new Virtual.VirtualAbstractStream.MissingStream(vms, (ushort)Virtual.VirtualAbstractStream.KnownStreams.Types),
+            new Virtual.VirtualAbstractStream.MissingStream(vms, (ushort)Virtual.VirtualAbstractStream.KnownStreams.Blobs),
+            new Virtual.VirtualAbstractStream.MissingStream(vms, (ushort)Virtual.VirtualAbstractStream.KnownStreams.Instances)
+        };
+        Virtual.VirtualMemorySystem.ExternalPtr headerPtr = vms.NullPointer;
+        Virtual.VirtualDataContext.CreateGoodContext(vms, streams, (headerStart) => headerPtr = headerStart);
+        vms.Reservations.Complete();
 
-        Assert.True(vms.TryReadUInt32(ptr, out uint magic));
+        Assert.True(vms.TryReadUInt32(headerPtr, out uint magic));
         Assert.Equal(DataContractReader.Magic, magic);
 
         using var dcrReader = vms.CreateReaderCallback();
-        DataContractReader dcr = new();
+        using DataContractReader dcr = new();
         dcr.SetReaderFunc(&Virtual.VirtualMemorySystem.Reader, dcrReader.UserData);
-        dcr.SetStream((nuint)vms.ToRawValue(ptr));
+        dcr.SetStream((nuint)vms.ToRawValue(headerPtr));
         Assert.True(dcr.Config.IsLittleEndian == isLittleEndian);
     }
 }
