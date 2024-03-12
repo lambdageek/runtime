@@ -25,8 +25,9 @@ public class DatacContractReaderTests
     {
         Virtual.VirtualMemorySystem vms = new(isLittleEndian, pointerSize);
         vms.AddNullPage();
+        var typesStream = new Virtual.VirtualTypeStream(vms);
         var streams = new Virtual.VirtualAbstractStream[3]{
-            new Virtual.VirtualAbstractStream.MissingStream(vms, (ushort)Virtual.VirtualAbstractStream.KnownStreams.Types),
+            typesStream,
             new Virtual.VirtualAbstractStream.MissingStream(vms, (ushort)Virtual.VirtualAbstractStream.KnownStreams.Blobs),
             new Virtual.VirtualAbstractStream.MissingStream(vms, (ushort)Virtual.VirtualAbstractStream.KnownStreams.Instances)
         };

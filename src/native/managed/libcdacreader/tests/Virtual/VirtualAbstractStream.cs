@@ -16,11 +16,9 @@ public abstract class VirtualAbstractStream : IVirtualMemoryRange
         Blobs,
         Instances,
     }
-    protected VirtualAbstractStream(VirtualMemorySystem virtualMemory, ushort id, VirtualMemorySystem.ExternalPtr start, ulong count)
+    protected VirtualAbstractStream(VirtualMemorySystem virtualMemory, ushort id)
     {
         _virtualMemory = virtualMemory;
-        Start = virtualMemory.ToInternalPtr(start);
-        Count = count;
         Id = id;
     }
 
@@ -28,24 +26,33 @@ public abstract class VirtualAbstractStream : IVirtualMemoryRange
     private readonly VirtualMemorySystem _virtualMemory;
     protected VirtualMemorySystem VirtualMemory => _virtualMemory;
 
-    public abstract ulong Start { get; protected init; }
-    public abstract ulong Count { get; protected init; }
+    public abstract ulong Start { get; }
+    public abstract ulong Count { get; }
 
-    public abstract VirtualMemorySystem.ExternalSizeT BlockDataSize { get; }
+    // for lazy stream / data context initialization
 
-    public abstract VirtualMemorySystem.ExternalSizeT MaxDataSize { get; }
+    public abstract Patches.Patch StreamStartPatch { get; }
+
+    public abstract Patches.Patch BlockDataSize { get; }
+
+    public abstract Patches.Patch MaxDataSize { get; }
 
     public abstract bool TryReadExtent(ulong start, ulong count, Span<byte> buffer);
 
     public class MissingStream : VirtualAbstractStream
     {
-        public MissingStream(VirtualMemorySystem virtualMemory, ushort id) : base(virtualMemory, id, virtualMemory.NullPointer, (ulong)0u) { }
-        public override ulong Start { get; protected init; }
-        public override ulong Count { get; protected init; }
+        public MissingStream(VirtualMemorySystem virtualMemory, ushort id) : base(virtualMemory, id)
+        {
+            Start = virtualMemory.ToInternalPtr(virtualMemory.NullPointer);
+            Count = (ulong)0u;
+        }
+        public override ulong Start { get; }
+        public override ulong Count { get; }
 
-        public override VirtualMemorySystem.ExternalSizeT BlockDataSize => VirtualMemory.ToExternalSizeT((ulong)0u);
+        public override Patches.Patch StreamStartPatch => Patches.MakeConstPatch(VirtualMemory, VirtualMemory.NullPointer);
+        public override Patches.Patch BlockDataSize => Patches.MakeConstPatch(VirtualMemory, VirtualMemory.ToExternalSizeT((ulong)0u));
 
-        public override VirtualMemorySystem.ExternalSizeT MaxDataSize => VirtualMemory.ToExternalSizeT((ulong)0u);
+        public override Patches.Patch MaxDataSize => Patches.MakeConstPatch(VirtualMemory, VirtualMemory.ToExternalSizeT((ulong)0u));
 
         public override bool TryReadExtent(ulong start, ulong count, Span<byte> buffer) => false;
     }

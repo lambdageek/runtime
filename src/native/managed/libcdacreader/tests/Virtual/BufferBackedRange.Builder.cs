@@ -16,13 +16,16 @@ public partial class BufferBackedRange : IVirtualMemoryRange
         private readonly VirtualMemorySystem _virtualMemory;
         private ulong _startAddr;
         private byte[] _buf;
-        private readonly IList<PatchPoint> _patches;
-        public Builder(VirtualMemorySystem virtualMemory, ulong count)
+        private readonly IList<Patches.PatchPoint> _patchPoints;
+        public Builder(VirtualMemorySystem virtualMemory, int count)
         {
             _virtualMemory = virtualMemory;
             _buf = new byte[count];
-            _patches = new List<PatchPoint>();
+            _patchPoints = new List<Patches.PatchPoint>();
         }
+
+        public VirtualMemorySystem VirtualMemory => _virtualMemory;
+        public VirtualMemorySystem.ExternalPtr StartAddr => _virtualMemory.ToExternalPtr(_startAddr);
 
         public void SetStart(VirtualMemorySystem.ExternalPtr startAddr)
         {
@@ -43,13 +46,28 @@ public partial class BufferBackedRange : IVirtualMemoryRange
             }
             ApplyPatches();
             byte[] buf = _buf;
-            _patches.Clear();
+            _patchPoints.Clear();
             _buf = null;
             return new BufferBackedRange(_startAddr, new Memory<byte>(buf));
         }
 
         // a bit dangerous  to do `Span<byte> otherSpan = ...; otherSpan.CopyTo(builder.Span)` - make sure endianness is matched in the other buffer
         private Span<byte> Span => new Span<byte>(_buf);
+
+        public void EnsureCapacity(int offset, int size)
+        {
+            if (offset + size >= _buf.Length)
+            {
+                GrowTo(offset + size);
+            }
+        }
+
+        private void GrowTo(int newSize)
+        {
+            byte[] newBuf = new byte[newSize];
+            _buf.CopyTo(newBuf.AsSpan());
+            _buf = newBuf;
+        }
 
         public void WriteUInt8(int offset, byte b)
         {
@@ -76,93 +94,25 @@ public partial class BufferBackedRange : IVirtualMemoryRange
         }
 
         // Records a buffer offset in the current builder that will be filled in with a patch later
-        public PatchPoint AddPatchPoint(int offset)
+        public Patches.PatchPoint AddPatchPoint(int offset)
         {
-            var patchPoint = new PatchPoint(this, offset);
-            _patches.Add(patchPoint);
+            var patchPoint = new Patches.PatchPoint(this, offset);
+            _patchPoints.Add(patchPoint);
             return patchPoint;
+        }
+
+        internal void ApplyPatch(Patches.Patch patch, int offset)
+        {
+            patch.ApplyPatch(Span.Slice(offset, patch.Size));
         }
 
         private void ApplyPatches()
         {
-            foreach (var patch in _patches)
+            foreach (var pp in _patchPoints)
             {
-                patch.ApplyPatchPoint();
+                pp.ApplyPatchPoint();
             }
         }
 
-        // Create a patch that will fill in a patch point with the ExternalPtr value of the given offset, once the
-        // sourceBuilder's start address is known
-        public Patch MakeBufferOffsetAbsolutePointerPatch(Builder sourceBuilder, int offset) => new BufferOffsetToAbsolutePtrPatch(sourceBuilder, offset);
-
-        public class PatchPoint
-        {
-            public readonly int PatchDest;
-            public readonly Builder DestBuilder;
-            private Patch? _patch;
-
-            public PatchPoint(Builder destBuilder, int patchDest)
-            {
-                DestBuilder = destBuilder;
-                PatchDest = patchDest;
-            }
-            public void SetPatch(Patch patch)
-            {
-                if (_patch != null)
-                {
-                    throw new InvalidOperationException("Patch already set");
-                }
-                _patch = patch;
-            }
-
-            public void ApplyPatchPoint()
-            {
-                if (_patch == null)
-                {
-                    throw new InvalidOperationException("Patch not set");
-                }
-                _patch.ApplyPatch(DestBuilder.Span.Slice(PatchDest, _patch.Size));
-            }
-        }
-
-        public abstract class Patch
-        {
-            public enum PatchKind
-            {
-                SameBufferOffsetToAbsolutePtr, // given an offset in the current buffer, patch with the absolute address of that offset
-            }
-
-            protected Patch(PatchKind kind)
-            {
-                Kind = kind;
-            }
-
-            protected PatchKind Kind { get; }
-            public abstract int Size { get; }
-
-            public abstract void ApplyPatch(Span<byte> dest);
-        }
-
-        public class BufferOffsetToAbsolutePtrPatch : Patch
-        {
-            private readonly Builder _sourceBuilder;
-            public BufferOffsetToAbsolutePtrPatch(Builder sourceBuilder, int offset) : base(Patch.PatchKind.SameBufferOffsetToAbsolutePtr)
-            {
-                _sourceBuilder = sourceBuilder;
-                Offset = offset;
-            }
-
-            public int Offset { get; }
-
-            public override int Size => _sourceBuilder._virtualMemory.PointerSize;
-            public override void ApplyPatch(Span<byte> _buf)
-            {
-                var vms = _sourceBuilder._virtualMemory;
-                var absPtr = vms.ToExternalPtr(_sourceBuilder._startAddr + (ulong)Offset);
-                vms.WriteExternalPtr(_buf, absPtr);
-            }
-        }
     }
-
-
 }

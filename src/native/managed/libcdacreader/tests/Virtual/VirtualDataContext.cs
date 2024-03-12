@@ -47,14 +47,14 @@ public class VirtualDataContext : IVirtualMemoryRangeOwner
         {
             _virtualMemory = virtualMemory;
             int streamCount = virtualStreams.Count;
-            var headerSize = (ushort)(CorrectDataContractHeaderSize + virtualMemory.PointerSize); /* header and pointer to start of streams */
+            ushort headerSize = (ushort)(CorrectDataContractHeaderSize + virtualMemory.PointerSize); /* header and pointer to start of streams */
             int streamHeaderSize = streamCount * (4 * virtualMemory.PointerSize); // FIXME: assumes sizeof(size_t) == sizeof(void*)
-            _bufBuilder = BufferBackedRange.Build(virtualMemory, (ulong)((int)headerSize + streamHeaderSize));
+            _bufBuilder = BufferBackedRange.Build(virtualMemory, (int)headerSize + streamHeaderSize);
             int offset = 0;
-            BufferBackedRange.Builder.Patch dataContextStartPatch = _bufBuilder.MakeBufferOffsetAbsolutePointerPatch(_bufBuilder, offset);
-            FillGoodHeader(headerSize, streamCount, ref offset, out BufferBackedRange.Builder.PatchPoint streamHeaderPtr);
+            Patches.Patch dataContextStartPatch = Patches.MakeBufferOffsetAbsolutePointerPatch(_bufBuilder, offset);
+            FillGoodHeader(headerSize, streamCount, ref offset, out Patches.PatchPoint streamHeaderPtr);
             int streamHeaderStartOffset = offset;
-            streamHeaderPtr.SetPatch(_bufBuilder.MakeBufferOffsetAbsolutePointerPatch(_bufBuilder, streamHeaderStartOffset));
+            streamHeaderPtr.SetPatch(Patches.MakeBufferOffsetAbsolutePointerPatch(_bufBuilder, streamHeaderStartOffset));
             AddStreamHeader(virtualStreams, dataContextStartPatch, ref offset);
             if (offset != (int)headerSize + streamHeaderSize)
                 throw new InvalidOperationException("Final offset didn't match expected size");
@@ -69,7 +69,7 @@ public class VirtualDataContext : IVirtualMemoryRangeOwner
             var buf = _bufBuilder.Create();
             return new VirtualDataContext(_virtualMemory, buf, malformed: false);
         }
-        private void FillGoodHeader(ushort headerSize, int streamCount, ref int offset, out BufferBackedRange.Builder.PatchPoint streamHeaderPtr)
+        private void FillGoodHeader(ushort headerSize, int streamCount, ref int offset, out Patches.PatchPoint streamHeaderPtr)
         {
             int off = offset;
             _bufBuilder.WriteUInt32(off + 0, Magic);
@@ -82,7 +82,7 @@ public class VirtualDataContext : IVirtualMemoryRangeOwner
             offset += 16 + _virtualMemory.PointerSize;
         }
 
-        public void AddStreamHeader(IReadOnlyCollection<VirtualAbstractStream> virtualStreams, BufferBackedRange.Builder.Patch dataContextStartPatch, ref int offset)
+        public void AddStreamHeader(IReadOnlyCollection<VirtualAbstractStream> virtualStreams, Patches.Patch dataContextStartPatch, ref int offset)
         {
             int off = offset;
             int streamNum = 0;
@@ -93,13 +93,12 @@ public class VirtualDataContext : IVirtualMemoryRangeOwner
                     throw new InvalidOperationException("Stream IDs must be contiguous and start at 0");
                 }
                 // struct data_stream__
-                _bufBuilder.WriteExternalPtr(off, _virtualMemory.ToExternalPtr(stream.Start)); // TODO: patchpoint
+                _bufBuilder.AddPatchPoint(off).SetPatch(stream.StreamStartPatch);
                 off += _virtualMemory.PointerSize;
-                _bufBuilder.WriteExternalSizeT(off, stream.BlockDataSize);
+                _bufBuilder.AddPatchPoint(off).SetPatch(stream.BlockDataSize);
                 off += _virtualMemory.PointerSize;
-                _bufBuilder.WriteExternalSizeT(off, stream.MaxDataSize);
+                _bufBuilder.AddPatchPoint(off).SetPatch(stream.MaxDataSize);
                 off += _virtualMemory.PointerSize;
-                _bufBuilder.WriteExternalPtr(off, _virtualMemory.NullPointer);
                 _bufBuilder.AddPatchPoint(off).SetPatch(dataContextStartPatch);
                 off += _virtualMemory.PointerSize;
                 streamNum++;

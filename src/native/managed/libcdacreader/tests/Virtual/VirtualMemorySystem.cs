@@ -131,6 +131,8 @@ public class VirtualMemorySystem
         return new ExternalSizeT(value);
     }
 
+    public ExternalPtr Advance(ExternalPtr pointerValue, int count) => Advance(pointerValue, (ulong)count);
+
     public ExternalPtr Advance(ExternalPtr pointerValue, ulong count)
     {
         return ToExternalPtr(ToInternalPtr(pointerValue) + count);

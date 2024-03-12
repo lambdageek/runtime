@@ -28,7 +28,7 @@ public partial class BufferBackedRange : IVirtualMemoryRange
         return true;
     }
 
-    public static BufferBackedRange.Builder Build(VirtualMemorySystem virtualMemory, ulong count)
+    public static BufferBackedRange.Builder Build(VirtualMemorySystem virtualMemory, int count)
     {
         return new Builder(virtualMemory, count);
     }
