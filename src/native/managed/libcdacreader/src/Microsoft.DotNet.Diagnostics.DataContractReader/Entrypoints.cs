@@ -83,7 +83,7 @@ internal static class Entrypoints
         }
         catch (Exception ex)
         {
-            Console.WriteLine("set_stream failed due to {0}", ex);
+            Console.Error.WriteLine("set_stream failed due to {0}", ex);
             return Result.EFail;
         }
     }

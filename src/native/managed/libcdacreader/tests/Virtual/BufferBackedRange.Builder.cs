@@ -4,6 +4,7 @@
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Data.SqlTypes;
 using System.Runtime.InteropServices;
 
 namespace Microsoft.DotNet.Diagnostics.DataContractReader.Tests.Virtual;
@@ -93,10 +94,15 @@ public partial class BufferBackedRange : IVirtualMemoryRange
             _virtualMemory.WriteExternalSizeT(new Span<byte>(_buf, offset, _virtualMemory.PointerSize), size);
         }
 
-        // Records a buffer offset in the current builder that will be filled in with a patch later
-        public Patches.PatchPoint AddPatchPoint(int offset)
+        public void WriteBytes(int offset, ReadOnlySpan<byte> value)
         {
-            var patchPoint = new Patches.PatchPoint(this, offset);
+            value.CopyTo(_buf.AsSpan(offset));
+        }
+
+        // Records a buffer offset in the current builder that will be filled in with a patch later
+        public Patches.PatchPoint AddPatchPoint(int offset, [System.Runtime.CompilerServices.CallerFilePath] string callerFilePath = default, [System.Runtime.CompilerServices.CallerLineNumber] int callerLineNum = 0)
+        {
+            var patchPoint = new Patches.PatchPoint(this, offset, callerFilePath, callerLineNum);
             _patchPoints.Add(patchPoint);
             return patchPoint;
         }

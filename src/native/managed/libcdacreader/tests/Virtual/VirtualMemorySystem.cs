@@ -149,7 +149,7 @@ public class VirtualMemorySystem
         AddRange(new NullPage());
     }
 
-    internal bool TryFindContainingRange(ExternalPtr pointerValue, out IVirtualMemoryRange? range)
+    internal bool TryFindContainingRange(ExternalPtr pointerValue, out IReadableVirtualMemoryRange? range)
     {
         range = null;
         if (!IsValidPointer(pointerValue))
@@ -177,7 +177,7 @@ public class VirtualMemorySystem
     {
         while (count > 0)
         {
-            if (!TryFindContainingRange(pointerValue, out IVirtualMemoryRange? range))
+            if (!TryFindContainingRange(pointerValue, out IReadableVirtualMemoryRange? range))
                 return false;
             ulong startAddress = ToInternalPtr(pointerValue);
             ulong offset = startAddress - range.Start;
@@ -235,20 +235,6 @@ public class VirtualMemorySystem
     }
 
     public ExternalPtr NullPointer => new ExternalPtr(0);
-
-
-    // find a free address range in the system's logical address space big enough for the given size
-    internal ulong FindFreeAddress(ulong size)
-    {
-        ulong lastEnd = 0;
-        foreach (IVirtualMemoryRange range in _ranges)
-        {
-            if (range.Start - lastEnd >= size)
-                return lastEnd;
-            lastEnd = range.Start + range.Count;
-        }
-        return lastEnd;
-    }
 
     public DataContractReaderReaderCallback CreateReaderCallback()
     {
@@ -312,14 +298,35 @@ public class VirtualMemorySystem
             return reservation;
         }
 
+
+        private static ulong FindFreeStartAddress(SortedSet<IVirtualMemoryRange> ranges, ulong size)
+        {
+            ulong lastEnd = 0;
+            foreach (IVirtualMemoryRange range in ranges)
+            {
+                if (range.Start - lastEnd >= size)
+                    return lastEnd;
+                lastEnd = range.Start + range.Count;
+            }
+            return lastEnd;
+        }
+
         public void Complete()
         {
+            // make a map of the used and provisionally requested ranges
+            SortedSet<IVirtualMemoryRange> ranges = new();
+            ranges.UnionWith(_virtualMemory._ranges);
             ulong[] starts = new ulong[_reservations.Count];
             int i = 0;
             foreach (var reservation in _reservations)
             {
-                starts[i++] = _virtualMemory.FindFreeAddress(reservation.GetRequestedSize());
+                ulong requestedSize = reservation.GetRequestedSize();
+                ulong start = FindFreeStartAddress(ranges, requestedSize);
+                starts[i++] = start;
+                var provisionalRange = new ProvisionalReservedRange(start, requestedSize);
+                ranges.Add(provisionalRange);
             }
+            ranges = null;
             i = 0;
             // once all the addresses are known, announce them
             foreach (var reservation in _reservations)
@@ -334,6 +341,18 @@ public class VirtualMemorySystem
             }
             _reservations.Clear();
         }
+
+        internal class ProvisionalReservedRange : IVirtualMemoryRange
+        {
+            public ulong Start { get; }
+            public ulong Count { get; }
+            public ProvisionalReservedRange(ulong start, ulong count)
+            {
+                Start = start;
+                Count = count;
+            }
+        }
+
     }
 
     public class Reservation
@@ -369,5 +388,6 @@ public class VirtualMemorySystem
 
         public void Complete() => _complete?.Invoke();
     }
+
 }
 

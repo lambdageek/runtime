@@ -79,19 +79,12 @@ public sealed class DataContractReader : IDisposable
         {
             isLittleEndian = false;
         } else {
-            Console.WriteLine ("Expected magic, got 0x{0:x} 0x{1:x} 0x{2:x} 0x{3:x}", magicSpan[0], magicSpan[1], magicSpan[2], magicSpan[3]);
+            Console.Error.WriteLine("Expected magic, got 0x{0:x} 0x{1:x} 0x{2:x} 0x{3:x}", magicSpan[0], magicSpan[1], magicSpan[2], magicSpan[3]);
             throw new Exception ("incorrect magic value");
         }
 
-        Console.WriteLine ("target is {0}", isLittleEndian ? "LE" : "BE");
+        Console.Error.WriteLine("target is {0}", isLittleEndian ? "LE" : "BE");
 
-#if false
-        // FIXME: for testing only
-        Config = new RemoteConfig()
-        {
-            IsLittleEndian = isLittleEndian
-        };
-#else
         ForeignU32 magic = _reader.ReadU32(_stream);
 
         DataStream.ds_validate_t endian = DataStream.dnds_validate(magic.Value);
@@ -149,7 +142,6 @@ public sealed class DataContractReader : IDisposable
                 handle.Free();
             }
         }
-#endif
     }
 
     [UnmanagedCallersOnly]

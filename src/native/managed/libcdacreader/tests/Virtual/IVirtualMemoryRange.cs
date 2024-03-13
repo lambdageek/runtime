@@ -9,15 +9,12 @@ using System.Runtime.InteropServices;
 namespace Microsoft.DotNet.Diagnostics.DataContractReader.Tests.Virtual;
 
 // Represents a range of virtual memory
-public interface IVirtualMemoryRange
+public interface IVirtualMemoryRange : IComparable<IVirtualMemoryRange>
 {
     // The start address of the range, in the system's logical address space
     ulong Start { get; }
     // The number of bytes in the range
     ulong Count { get; }
-    // Read a range of bytes from the range, starting at the given offset
-    // returns false if the range does not contain the given offset and count
-    bool TryReadExtent(ulong start, ulong count, Span<byte> buffer);
 
     static bool DoesNotIntersect(IVirtualMemoryRange first, IVirtualMemoryRange second)
     {
@@ -30,10 +27,27 @@ public interface IVirtualMemoryRange
         return !DoesNotIntersect(first, second);
     }
 
+    int IComparable<IVirtualMemoryRange>.CompareTo(IVirtualMemoryRange? other)
+    {
+        if (other == null)
+            return 1;
+        if (Overlaps(this, other))
+            throw new InvalidOperationException("Ranges overlap");
+        return Start.CompareTo(other.Start);
+    }
+
+}
+
+public interface IReadableVirtualMemoryRange : IVirtualMemoryRange
+{
+    // Read a range of bytes from the range, starting at the given offset
+    // returns false if the range does not contain the given offset and count
+    bool TryReadExtent(ulong start, ulong count, Span<byte> buffer);
+
 }
 
 // Represents a range of virtual memory that is owned by a particular subsystem - can be added to the overall VirutlaMemorySystem.
-public interface IVirtualMemoryRangeOwner : IVirtualMemoryRange, IComparable<IVirtualMemoryRangeOwner>
+public interface IVirtualMemoryRangeOwner : IReadableVirtualMemoryRange, IComparable<IVirtualMemoryRangeOwner>
 {
     int IComparable<IVirtualMemoryRangeOwner>.CompareTo(IVirtualMemoryRangeOwner? other)
     {

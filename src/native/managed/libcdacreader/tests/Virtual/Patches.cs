@@ -24,16 +24,26 @@ public static class Patches
     {
         return new ConstPtrPatch(virtualMemory, value);
     }
+
+    public static Patch MakeConstPatch(VirtualMemorySystem virtualMemory, uint value)
+    {
+        return new ConstUInt32Patch(virtualMemory, value);
+    }
+
     public class PatchPoint
     {
         public readonly int PatchDest;
         public readonly BufferBackedRange.Builder DestBuilder;
         private Patch? _patch;
+        private readonly string? _callerFileName;
+        private readonly int _callerLineNum;
 
-        public PatchPoint(BufferBackedRange.Builder destBuilder, int patchDest)
+        public PatchPoint(BufferBackedRange.Builder destBuilder, int patchDest, string callerFileName = default, int callerLineNum = default)
         {
             DestBuilder = destBuilder;
             PatchDest = patchDest;
+            _callerFileName = callerFileName;
+            _callerLineNum = callerLineNum;
         }
         public void SetPatch(Patch patch)
         {
@@ -48,6 +58,8 @@ public static class Patches
         {
             if (_patch == null)
             {
+                if (_callerFileName != null)
+                    throw new InvalidOperationException($"Patch not set at {_callerFileName}:{_callerLineNum}");
                 throw new InvalidOperationException("Patch not set");
             }
             DestBuilder.ApplyPatch(_patch, PatchDest);
@@ -61,6 +73,7 @@ public static class Patches
             SameBufferOffsetToAbsolutePtr, // given an offset in the current buffer, patch with the absolute address of that offset
             ConstSizeT,
             ConstPtr,
+            ConstUInt32Patch,
         }
 
         protected Patch(PatchKind kind)
@@ -105,9 +118,9 @@ public static class Patches
         }
 
         public override int Size => _virtualMemory.PointerSize;
-        public override void ApplyPatch(Span<byte> _buf)
+        public override void ApplyPatch(Span<byte> buf)
         {
-            _virtualMemory.WriteExternalSizeT(_buf, _value);
+            _virtualMemory.WriteExternalSizeT(buf, _value);
         }
     }
 
@@ -122,9 +135,26 @@ public static class Patches
         }
 
         public override int Size => _virtualMemory.PointerSize;
-        public override void ApplyPatch(Span<byte> _buf)
+        public override void ApplyPatch(Span<byte> buf)
         {
-            _virtualMemory.WriteExternalPtr(_buf, _value);
+            _virtualMemory.WriteExternalPtr(buf, _value);
+        }
+    }
+
+    public class ConstUInt32Patch : Patch
+    {
+        private readonly VirtualMemorySystem _virtualMemory;
+        private readonly uint _value;
+        public ConstUInt32Patch(VirtualMemorySystem virtualMemory, uint value) : base(PatchKind.ConstUInt32Patch)
+        {
+            _virtualMemory = virtualMemory;
+            _value = value;
+        }
+
+        public override int Size => 4;
+        public override void ApplyPatch(Span<byte> buf)
+        {
+            _virtualMemory.WriteUInt32(buf, _value);
         }
     }
 }

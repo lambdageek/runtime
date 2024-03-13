@@ -3,6 +3,7 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 
@@ -56,4 +57,40 @@ public abstract class VirtualAbstractStream : IVirtualMemoryRange
 
         public override bool TryReadExtent(ulong start, ulong count, Span<byte> buffer) => false;
     }
+
+    public abstract class StreamEntityWriter<T>
+    {
+        private readonly BufferBackedRange.Builder _bufBuilder;
+
+        public StreamEntityWriter(BufferBackedRange.Builder bufBuilder)
+        {
+            _bufBuilder = bufBuilder;
+        }
+
+        protected BufferBackedRange.Builder BufferBuilder => _bufBuilder;
+
+        public abstract int GetPayloadSize(T payload);
+        public abstract void WritePayload(T payload, ref int offset);
+
+        public int EntityHeaderSize => 2 * 4;
+
+        public virtual void WriteEntity(T payload, ref int offset)
+        {
+            int size = EntityHeaderSize;
+            int payloadSize = GetPayloadSize(payload);
+            size += payloadSize;
+            _bufBuilder.EnsureCapacity(offset, size);
+            _bufBuilder.WriteUInt32(offset, (uint)size); // relative offset of next entity start
+            offset += 4;
+            _bufBuilder.WriteUInt32(offset, 0u); // reserved
+            offset += 4;
+            int oldOffset = offset;
+            WritePayload(payload, ref offset);
+            if (payloadSize != (offset - oldOffset))
+            {
+                throw new InvalidOperationException($"Payload size mismatch (payload {payloadSize} != written {offset - oldOffset})");
+            }
+        }
+    }
+
 }
