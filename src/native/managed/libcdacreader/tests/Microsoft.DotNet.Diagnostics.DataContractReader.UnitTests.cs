@@ -17,11 +17,7 @@ public class DatacContractReaderTests
         Assert.NotNull(dcr);
     }
 
-    [InlineData(true, 8)]
-    [InlineData(true, 4)]
-    [InlineData(false, 8)]
-    [Theory]
-    public unsafe void CanReadGoodHeader(bool isLittleEndian, int pointerSize)
+    private (Virtual.VirtualMemorySystem virtualMemory, Virtual.VirtualMemorySystem.ExternalPtr dataContextPtr) CreateBaselineVirtualMemory(bool isLittleEndian, int pointerSize)
     {
         Virtual.VirtualMemorySystem vms = new(isLittleEndian, pointerSize);
         vms.AddNullPage();
@@ -45,7 +41,16 @@ public class DatacContractReaderTests
         Virtual.VirtualMemorySystem.ExternalPtr headerPtr = vms.NullPointer;
         Virtual.VirtualDataContext.CreateGoodContext(vms, streams, (headerStart) => headerPtr = headerStart);
         vms.Reservations.Complete();
+        return (vms, headerPtr);
+    }
 
+    [InlineData(true, 8)]
+    [InlineData(true, 4)]
+    [InlineData(false, 8)]
+    [Theory]
+    public unsafe void CanReadGoodHeader(bool isLittleEndian, int pointerSize)
+    {
+        (Virtual.VirtualMemorySystem vms, Virtual.VirtualMemorySystem.ExternalPtr headerPtr) = CreateBaselineVirtualMemory(isLittleEndian, pointerSize);
         Assert.True(vms.TryReadUInt32(headerPtr, out uint magic));
         Assert.Equal(DataContractReader.Magic, magic);
 
