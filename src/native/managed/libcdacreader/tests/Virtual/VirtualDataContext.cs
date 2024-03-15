@@ -22,10 +22,18 @@ namespace Microsoft.DotNet.Diagnostics.DataContractReader.Tests.Virtual;
 public class VirtualDataContext : IVirtualMemoryRangeOwner
 {
     // Create a well-formed context at the given base address
-    public static void CreateGoodContext(VirtualMemorySystem virtualMemory, IReadOnlyCollection<VirtualAbstractStream>? virtualStreams, Action<VirtualMemorySystem.ExternalPtr> OnCreate)
+    public static void CreateGoodContext(VirtualMemorySystem virtualMemory, IReadOnlyCollection<VirtualAbstractStream.Builder>? virtualStreams, Action<VirtualMemorySystem.ExternalPtr> OnCreate)
     {
         if (virtualStreams == null)
-            virtualStreams = Array.Empty<VirtualAbstractStream>();
+            virtualStreams = [
+                new VirtualEmptyStream.EmptyStreamBuilder(virtualMemory, VirtualEmptyStream.KnownStream.Types),
+                new VirtualEmptyStream.EmptyStreamBuilder(virtualMemory, VirtualEmptyStream.KnownStream.Blobs),
+                new VirtualEmptyStream.EmptyStreamBuilder(virtualMemory, VirtualEmptyStream.KnownStream.Instances)
+            ];
+        foreach (var stream in virtualStreams)
+        {
+            stream.Build();
+        }
         VirtualMemorySystem.Reservation res = virtualMemory.Reservations.Add();
         var builder = new VirtualDataContextBuilder(virtualMemory, virtualStreams);
         res.OnGetRequetedSize(builder.GetRequestedSize)
@@ -43,7 +51,7 @@ public class VirtualDataContext : IVirtualMemoryRangeOwner
         private readonly BufferBackedRange.Builder _bufBuilder;
         private readonly VirtualMemorySystem _virtualMemory;
 
-        public VirtualDataContextBuilder(VirtualMemorySystem virtualMemory, IReadOnlyCollection<VirtualAbstractStream> virtualStreams)
+        public VirtualDataContextBuilder(VirtualMemorySystem virtualMemory, IReadOnlyCollection<VirtualAbstractStream.Builder> virtualStreams)
         {
             _virtualMemory = virtualMemory;
             int streamCount = virtualStreams.Count;
@@ -82,7 +90,7 @@ public class VirtualDataContext : IVirtualMemoryRangeOwner
             offset += 16 + _virtualMemory.PointerSize;
         }
 
-        public void AddStreamHeader(IReadOnlyCollection<VirtualAbstractStream> virtualStreams, Patches.Patch dataContextStartPatch, ref int offset)
+        public void AddStreamHeader(IReadOnlyCollection<VirtualAbstractStream.Builder> virtualStreams, Patches.Patch dataContextStartPatch, ref int offset)
         {
             int off = offset;
             int streamNum = 0;

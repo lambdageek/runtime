@@ -21,7 +21,7 @@ public class DatacContractReaderTests
     {
         Virtual.VirtualMemorySystem vms = new(isLittleEndian, pointerSize);
         vms.AddNullPage();
-        var typesStream = new Virtual.VirtualTypeStream(vms, [
+        var typesStream = new Virtual.VirtualTypeStream.TypeStreamBuilder(vms, [
             new Virtual.VirtualTypeStream.TypeEntity {
                 Details = new Virtual.VirtualTypeStream.TypeDetails {Id = 1, Version = 1, Name = "Ptr"},
                 TotalSize = (uint)pointerSize,
@@ -33,10 +33,10 @@ public class DatacContractReaderTests
                 FieldOffsets = Array.Empty<Virtual.VirtualTypeStream.FieldOffset>()
                 },
         ]);
-        var streams = new Virtual.VirtualAbstractStream[3]{
+        var streams = new Virtual.VirtualAbstractStream.Builder[3]{
             typesStream,
-            new Virtual.EmptyStream(vms, Virtual.VirtualAbstractStream.KnownStream.Blobs),
-            new Virtual.EmptyStream(vms, Virtual.VirtualAbstractStream.KnownStream.Instances)
+            new Virtual.VirtualEmptyStream.EmptyStreamBuilder(vms, Virtual.VirtualAbstractStream.KnownStream.Blobs),
+            new Virtual.VirtualEmptyStream.EmptyStreamBuilder(vms, Virtual.VirtualAbstractStream.KnownStream.Instances)
         };
         Virtual.VirtualMemorySystem.ExternalPtr headerPtr = vms.NullPointer;
         Virtual.VirtualDataContext.CreateGoodContext(vms, streams, (headerStart) => headerPtr = headerStart);

@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 
 namespace Microsoft.DotNet.Diagnostics.DataContractReader.Tests.Virtual;
 
-public abstract class VirtualAbstractStream : IVirtualMemoryRange
+public abstract partial class VirtualAbstractStream : IVirtualMemoryRange
 {
     public enum KnownStream : ushort
     {
@@ -29,14 +29,6 @@ public abstract class VirtualAbstractStream : IVirtualMemoryRange
 
     public abstract ulong Start { get; }
     public abstract ulong Count { get; }
-
-    // for lazy stream / data context initialization
-
-    public abstract Patches.Patch StreamStartPatch { get; }
-
-    public abstract Patches.Patch BlockDataSize { get; }
-
-    public abstract Patches.Patch MaxDataSize { get; }
 
     public abstract bool TryReadExtent(ulong start, ulong count, Span<byte> buffer);
 
