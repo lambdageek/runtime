@@ -18,8 +18,8 @@ public class DatacContractReaderTests
     }
 
     [InlineData(true, 8)]
-    // [InlineData(true, 4)]
-    // [InlineData(false, 8)]
+    [InlineData(true, 4)]
+    [InlineData(false, 8)]
     [Theory]
     public unsafe void CanReadGoodHeader(bool isLittleEndian, int pointerSize)
     {
