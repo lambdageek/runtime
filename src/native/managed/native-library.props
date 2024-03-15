@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <!-- HACK: use for mac builds until we get codeflow that includes https://github.com/dotnet/runtime/pull/99173 -->
-    <UseInTreeAOT Condition="'$(TargetsOSX)' == 'true'">true</UseInTreeAOT>
+    <UseInTreeAOT Condition="'$(TargetsOSX)' == 'true'">false</UseInTreeAOT>
     <PublishAot Condition="'$(UseInTreeAOT)' != 'true'">true</PublishAot>
     <SelfContained>true</SelfContained>
     <!-- Don't strip symbols NativeAOT's default way. We will strip and save the symbols ourselves,

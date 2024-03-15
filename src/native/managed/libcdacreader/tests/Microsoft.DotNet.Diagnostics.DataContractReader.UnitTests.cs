@@ -39,8 +39,8 @@ public class DatacContractReaderTests
         ]);
         var streams = new Virtual.VirtualAbstractStream[3]{
             typesStream,
-            new Virtual.EmptyStream(vms, (ushort)Virtual.VirtualAbstractStream.KnownStreams.Blobs),
-            new Virtual.EmptyStream(vms, (ushort)Virtual.VirtualAbstractStream.KnownStreams.Instances)
+            new Virtual.EmptyStream(vms, Virtual.VirtualAbstractStream.KnownStream.Blobs),
+            new Virtual.EmptyStream(vms, Virtual.VirtualAbstractStream.KnownStream.Instances)
         };
         Virtual.VirtualMemorySystem.ExternalPtr headerPtr = vms.NullPointer;
         Virtual.VirtualDataContext.CreateGoodContext(vms, streams, (headerStart) => headerPtr = headerStart);
@@ -54,5 +54,8 @@ public class DatacContractReaderTests
         dcr.SetReaderFunc(&Virtual.VirtualMemorySystem.Reader, dcrReader.UserData);
         dcr.SetStream((nuint)vms.ToRawValue(headerPtr));
         Assert.True(dcr.Config.IsLittleEndian == isLittleEndian);
+        var ptrDetails = dcr.Details.TypeDetailsByLocalId[DSType.Ptr];
+        Assert.Equal("Ptr", ptrDetails.Name);
+        Assert.Equal((nuint)pointerSize, ptrDetails.Size);
     }
 }

@@ -15,7 +15,7 @@ public class EmptyStream : VirtualAbstractStream, IVirtualMemoryRangeOwner
     private BufferBackedRange.Builder _bufBuilder;
     private BufferBackedRange _buf;
 
-    public EmptyStream(VirtualMemorySystem virtualMemory, ushort id) : base(virtualMemory, id)
+    public EmptyStream(VirtualMemorySystem virtualMemory, KnownStream id) : base(virtualMemory, id)
     {
         _bufBuilder = new BufferBackedRange.Builder(virtualMemory, 16); // just the header, for now
         int offset = 0;

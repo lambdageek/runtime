@@ -11,19 +11,19 @@ namespace Microsoft.DotNet.Diagnostics.DataContractReader.Tests.Virtual;
 
 public abstract class VirtualAbstractStream : IVirtualMemoryRange
 {
-    public enum KnownStreams : ushort
+    public enum KnownStream : ushort
     {
         Types,
         Blobs,
         Instances,
     }
-    protected VirtualAbstractStream(VirtualMemorySystem virtualMemory, ushort id)
+    protected VirtualAbstractStream(VirtualMemorySystem virtualMemory, KnownStream id)
     {
         _virtualMemory = virtualMemory;
         Id = id;
     }
 
-    public readonly ushort Id;
+    public readonly KnownStream Id;
     private readonly VirtualMemorySystem _virtualMemory;
     protected VirtualMemorySystem VirtualMemory => _virtualMemory;
 
@@ -39,24 +39,6 @@ public abstract class VirtualAbstractStream : IVirtualMemoryRange
     public abstract Patches.Patch MaxDataSize { get; }
 
     public abstract bool TryReadExtent(ulong start, ulong count, Span<byte> buffer);
-
-    public class MissingStream : VirtualAbstractStream
-    {
-        public MissingStream(VirtualMemorySystem virtualMemory, ushort id) : base(virtualMemory, id)
-        {
-            Start = virtualMemory.ToInternalPtr(virtualMemory.NullPointer);
-            Count = (ulong)0u;
-        }
-        public override ulong Start { get; }
-        public override ulong Count { get; }
-
-        public override Patches.Patch StreamStartPatch => Patches.MakeConstPatch(VirtualMemory, VirtualMemory.NullPointer);
-        public override Patches.Patch BlockDataSize => Patches.MakeConstPatch(VirtualMemory, VirtualMemory.ToExternalSizeT((ulong)0u));
-
-        public override Patches.Patch MaxDataSize => Patches.MakeConstPatch(VirtualMemory, VirtualMemory.ToExternalSizeT((ulong)0u));
-
-        public override bool TryReadExtent(ulong start, ulong count, Span<byte> buffer) => false;
-    }
 
     public abstract class StreamEntityWriter<T>
     {

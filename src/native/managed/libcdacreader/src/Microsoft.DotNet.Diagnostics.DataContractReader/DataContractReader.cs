@@ -33,7 +33,7 @@ public sealed class DataContractReader : IDisposable
         public Dictionary<DSType, RemoteType> TypeDetailsByLocalId = new Dictionary<DSType, RemoteType>();
     }
 
-    private TypeDetails Details { get; } = new TypeDetails();
+    public TypeDetails Details { get; } = new TypeDetails();
     public RemoteConfig Config { get; private set; }
 
     public DataContractReader()

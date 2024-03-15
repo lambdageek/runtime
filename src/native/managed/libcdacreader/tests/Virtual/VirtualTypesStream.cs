@@ -54,7 +54,7 @@ public class VirtualTypeStream : VirtualAbstractStream, IVirtualMemoryRangeOwner
         public ushort Offset { get; init; }
     }
 
-    public VirtualTypeStream(VirtualMemorySystem virtualMemory, TypeEntity[] entities) : base(virtualMemory, (ushort)KnownStreams.Types)
+    public VirtualTypeStream(VirtualMemorySystem virtualMemory, TypeEntity[] entities) : base(virtualMemory, KnownStream.Types)
     {
         if (entities == null || entities.Length == 0)
         {
