@@ -9,19 +9,11 @@ using System.Runtime.InteropServices;
 
 namespace Microsoft.DotNet.Diagnostics.DataContractReader.Tests.Virtual;
 
-public class VirtualEmptyStream : VirtualAbstractStream, IVirtualMemoryRangeOwner
+public class VirtualEmptyStream : VirtualBufferBackedStream, IVirtualMemoryRangeOwner
 {
-    private BufferBackedRange _buf;
-
-    private VirtualEmptyStream(VirtualMemorySystem virtualMemory, KnownStream id, BufferBackedRange buffer) : base(virtualMemory, id)
+    private VirtualEmptyStream(VirtualMemorySystem virtualMemory, KnownStream id, BufferBackedRange buffer) : base(virtualMemory, id, buffer)
     {
-        _buf = buffer;
     }
-
-    public override ulong Start => _buf.Start;
-    public override ulong Count => _buf.Count;
-
-    public override bool TryReadExtent(ulong start, ulong count, Span<byte> buffer) => _buf.TryReadExtent(start, count, buffer);
 
     public class EmptyStreamBuilder : Builder<VirtualEmptyStream>
     {

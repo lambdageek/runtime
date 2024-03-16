@@ -8,10 +8,8 @@ using System.Text;
 
 namespace Microsoft.DotNet.Diagnostics.DataContractReader.Tests.Virtual;
 
-public class VirtualTypeStream : VirtualAbstractStream, IVirtualMemoryRangeOwner
+public class VirtualTypeStream : VirtualBufferBackedStream, IVirtualMemoryRangeOwner
 {
-    private readonly BufferBackedRange _buf;
-
     private readonly IReadOnlyCollection<TypeEntity> _entities;
 
     public readonly struct TypeEntity
@@ -35,16 +33,11 @@ public class VirtualTypeStream : VirtualAbstractStream, IVirtualMemoryRangeOwner
         public ushort Offset { get; init; }
     }
 
-    private VirtualTypeStream(VirtualMemorySystem virtualMemory, BufferBackedRange buffer, IReadOnlyList<TypeEntity> entities) : base(virtualMemory, KnownStream.Types)
+    private VirtualTypeStream(VirtualMemorySystem virtualMemory, BufferBackedRange buffer, IReadOnlyList<TypeEntity> entities) : base(virtualMemory, KnownStream.Types, buffer)
     {
         _entities = entities;
-        _buf = buffer;
     }
 
-    public override ulong Start => _buf.Start;
-    public override ulong Count => _buf.Count;
-
-    public override bool TryReadExtent(ulong start, ulong count, Span<byte> buffer) => _buf.TryReadExtent(start, count, buffer);
 
     public class TypeStreamBuilder : VirtualAbstractStream.Builder<VirtualTypeStream>
     {
