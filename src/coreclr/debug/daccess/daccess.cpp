@@ -5499,13 +5499,15 @@ ClrDataAccess::Initialize(void)
         DWORD val;
         if (enable.TryAsInteger(10, val) && val == 1)
         {
-            // TODO: [cdac] Get contract descriptor from exported symbol
+	    fprintf(stderr, "cdac enabled\n");
             uint64_t contractDescriptorAddr = 0;
-            //if (TryGetSymbol(m_pTarget, m_globalBase, "DotNetRuntimeContractDescriptor", &contractDescriptorAddr))
+            if (TryGetSymbol(m_pTarget, m_globalBase, "DotNetRuntimeContractDescriptor", &contractDescriptorAddr))
             {
+		fprintf(stderr, "cdac contract found\n");
                 m_cdac = CDAC::Create(contractDescriptorAddr, m_pTarget);
                 if (m_cdac.IsValid())
                 {
+		    fprintf(stderr, "cdacreader initialized\n");
                     // Get SOS interfaces from the cDAC if available.
                     IUnknown* unk = m_cdac.SosInterface();
                     (void)unk->QueryInterface(__uuidof(ISOSDacInterface), (void**)&m_cdacSos);

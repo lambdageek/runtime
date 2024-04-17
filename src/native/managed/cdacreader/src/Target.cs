@@ -22,14 +22,117 @@ internal sealed unsafe class Target
     private bool _isLittleEndian;
     private int _pointerSize;
 
-    public Target(ulong _, delegate* unmanaged<ulong, byte*, uint, void*, int> readFromTarget, void* readContext)
+    public Target(ulong contractDescriptorAddr, delegate* unmanaged<ulong, byte*, uint, void*, int> readFromTarget, void* readContext)
     {
         _readFromTarget = readFromTarget;
         _readContext = readContext;
 
-        // TODO: [cdac] Populate from descriptor
-        _isLittleEndian = BitConverter.IsLittleEndian;
-        _pointerSize = IntPtr.Size;
+        if (!TryReadDescriptor(contractDescriptorAddr, out _isLittleEndian, out _pointerSize))
+            throw new InvalidOperationException("Failed to read descriptor");
+        // TODO: parse json
+
+    }
+
+    [Flags]
+    private enum PlatformFlagsBits : uint
+    {
+        Bit0 = 1, // reserved bit always set
+        PointerSizeBit = 2, // 0 = 8 bytes, 1 = 4 bytes
+    }
+
+    private bool TryReadDescriptor(ulong address, out bool isLittleEndian, out int pointerSize)
+    {
+        isLittleEndian = false;
+        pointerSize = 0;
+        byte* buffer = stackalloc byte[8];
+        ReadOnlySpan<byte> span = new ReadOnlySpan<byte>(buffer, 8);
+        if (ReadFromTarget(address, buffer, 8) < 0)
+        {
+            return false;
+        }
+        if (BinaryPrimitives.ReadUInt64LittleEndian(span) == 0x0043414443434e44ul)
+        {
+            Console.Error.WriteLine("little endian descriptor");
+            isLittleEndian = true;
+        }
+        else if (BinaryPrimitives.ReadUInt64BigEndian(span) == 0x0043414443434e44ul)
+        {
+            Console.Error.WriteLine("big endian descriptor");
+            isLittleEndian = false;
+        }
+        else
+        {
+            Console.Error.WriteLine("coudl not parse magic");
+            return false;
+        }
+        address += sizeof(ulong); // advance to platform flags
+        if (ReadFromTarget(address, buffer, 4) < 0)
+        {
+            return false;
+        }
+        PlatformFlagsBits platformFlags = isLittleEndian
+            ? (PlatformFlagsBits)BinaryPrimitives.ReadUInt32LittleEndian(span)
+            : (PlatformFlagsBits)BinaryPrimitives.ReadUInt32BigEndian(span);
+        if ((platformFlags & PlatformFlagsBits.Bit0) != PlatformFlagsBits.Bit0)
+        {
+            Console.Error.WriteLine("not a valid descriptor: platformFlags bit0 is 0");
+            return false;
+        }
+        if ((platformFlags & PlatformFlagsBits.PointerSizeBit) == PlatformFlagsBits.PointerSizeBit)
+        {
+            pointerSize = 8;
+        }
+        else
+        {
+            pointerSize = 4;
+        }
+
+        address += sizeof(uint); // advance to json length
+
+        if (ReadFromTarget(address, buffer, 4) < 0)
+        {
+            return false;
+        }
+        uint jsonPayloadLength = isLittleEndian
+            ? BinaryPrimitives.ReadUInt32LittleEndian(span)
+            : BinaryPrimitives.ReadUInt32BigEndian(span);
+        Console.Error.WriteLine($"json payload length: {jsonPayloadLength}");
+        address += sizeof(uint); // advance to json payload pointer
+        if (ReadFromTarget(address, buffer, 8) < 0)
+        {
+            return false;
+        }
+        ulong jsonPayloadAddress = isLittleEndian
+            ? BinaryPrimitives.ReadUInt64LittleEndian(span)
+            : BinaryPrimitives.ReadUInt64BigEndian(span);
+        address += sizeof(ulong); // advance to pointer data count
+        if (ReadFromTarget(address, buffer, 4) < 0)
+        {
+            return false;
+        }
+        uint pointerDataCount = isLittleEndian
+            ? BinaryPrimitives.ReadUInt32LittleEndian(span)
+            : BinaryPrimitives.ReadUInt32BigEndian(span);
+        Console.Error.WriteLine($"pointer data count: {pointerDataCount}");
+        address += sizeof(uint); // advance to padding;
+        address += sizeof(uint); // advance to pointer data address
+        if (ReadFromTarget(address, buffer, 8) < 0)
+        {
+            return false;
+        }
+        ulong pointerDataAddress = isLittleEndian
+            ? BinaryPrimitives.ReadUInt64LittleEndian(span)
+            : BinaryPrimitives.ReadUInt64BigEndian(span);
+        Console.Error.WriteLine($"pointer data address: {pointerDataAddress}");
+        ReadOnlySpan<byte> jsonSpan = new ReadOnlySpan<byte>((byte*)jsonPayloadAddress, (int)jsonPayloadLength);
+        ContractDescriptorParser.ContractDescriptor? descriptor = ContractDescriptorParser.ParseCompact(jsonSpan);
+        if (descriptor == null)
+        {
+            Console.Error.WriteLine("failed to parse descriptor");
+            return false;
+        }
+        Console.Error.WriteLine($"parsed descriptor: {descriptor}");
+        return true;
     }
 
     public bool TryReadPointer(ulong address, out TargetPointer pointer)
