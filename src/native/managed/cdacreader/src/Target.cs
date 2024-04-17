@@ -3,6 +3,7 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Text;
 
 namespace Microsoft.Diagnostics.DataContractReader;
 
@@ -105,6 +106,7 @@ internal sealed unsafe class Target
         ulong jsonPayloadAddress = isLittleEndian
             ? BinaryPrimitives.ReadUInt64LittleEndian(span)
             : BinaryPrimitives.ReadUInt64BigEndian(span);
+        Console.Error.WriteLine($"json payload address: 0x{jsonPayloadAddress:x16}");
         address += sizeof(ulong); // advance to pointer data count
         if (ReadFromTarget(address, buffer, 4) < 0)
         {
@@ -123,9 +125,18 @@ internal sealed unsafe class Target
         ulong pointerDataAddress = isLittleEndian
             ? BinaryPrimitives.ReadUInt64LittleEndian(span)
             : BinaryPrimitives.ReadUInt64BigEndian(span);
-        Console.Error.WriteLine($"pointer data address: {pointerDataAddress}");
-        ReadOnlySpan<byte> jsonSpan = new ReadOnlySpan<byte>((byte*)jsonPayloadAddress, (int)jsonPayloadLength);
-        ContractDescriptorParser.ContractDescriptor? descriptor = ContractDescriptorParser.ParseCompact(jsonSpan);
+        Console.Error.WriteLine($"pointer data address: 0x{pointerDataAddress:x16}");
+        byte[] jsonBuffer = new byte[jsonPayloadLength];
+        fixed (byte* jsonBufferPtr = jsonBuffer)
+        {
+            if (ReadFromTarget(jsonPayloadAddress, jsonBufferPtr, jsonPayloadLength) < 0)
+            {
+                return false;
+            }
+        }
+        string s = Encoding.ASCII.GetString(jsonBuffer);
+        Console.Error.WriteLine($"json: {s}");
+        ContractDescriptorParser.ContractDescriptor? descriptor = ContractDescriptorParser.ParseCompact(jsonBuffer);
         if (descriptor == null)
         {
             Console.Error.WriteLine("failed to parse descriptor");

@@ -66,6 +66,12 @@ public partial class ContractDescriptorParser
 
         [JsonExtensionData]
         public Dictionary<string, JsonElement>? Extras { get; set; }
+
+        public override string ToString()
+        {
+            return $"Version: {Version}, Baseline: {Baseline}, Contracts: {Contracts?.Count}, Types: {Types?.Count}, Globals: {Globals?.Count}";
+        }
+
     }
 
     [JsonConverter(typeof(TypeDescriptorConverter))]
