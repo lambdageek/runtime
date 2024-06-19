@@ -605,8 +605,11 @@ if(LLVM_PREFIX)
   set(llvm_config_path "${LLVM_PREFIX}/include/llvm/Config/llvm-config.h")
 
   # llvm-config --mono-api-version
-  file(STRINGS ${llvm_config_path} llvm_api_version_line REGEX "MONO_API_VERSION ")
-  string(REGEX REPLACE ".*MONO_API_VERSION ([0-9]+)" "\\1" llvm_api_version ${llvm_api_version_line})
+  #file(STRINGS ${llvm_config_path} llvm_api_version_line REGEX "MONO_API_VERSION ")
+
+  #string(REGEX REPLACE ".*MONO_API_VERSION ([0-9]+)" "\\1" llvm_api_version ${llvm_api_version_line})
+  # FIXME: ak:
+  set(llvm_api_version "1900")
 
   # llvm-config --libs analysis core bitwriter mcjit orcjit
   set(MONO_llvm_core_libs "LLVMOrcJIT" "LLVMPasses" "LLVMCoroutines" "LLVMipo" "LLVMInstrumentation" "LLVMVectorize" "LLVMScalarOpts" "LLVMLinker" "LLVMIRReader" "LLVMAsmParser" "LLVMInstCombine" "LLVMFrontendOpenMP" "LLVMAggressiveInstCombine" "LLVMTransformUtils" "LLVMJITLink" "LLVMMCJIT" "LLVMExecutionEngine" "LLVMTarget" "LLVMRuntimeDyld" "LLVMBitWriter" "LLVMAnalysis" "LLVMProfileData" "LLVMObject" "LLVMTextAPI" "LLVMMCParser" "LLVMMC" "LLVMDebugInfoCodeView" "LLVMBitReader" "LLVMCore" "LLVMRemarks" "LLVMBitstreamReader" "LLVMBinaryFormat" "LLVMSupport" "LLVMDemangle")
