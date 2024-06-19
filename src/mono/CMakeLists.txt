@@ -615,8 +615,10 @@ if(LLVM_PREFIX)
   set(MONO_llvm_core_libs "LLVMOrcJIT" "LLVMPasses" "LLVMCoroutines" "LLVMipo" "LLVMInstrumentation" "LLVMVectorize" "LLVMScalarOpts" "LLVMLinker" "LLVMIRReader" "LLVMAsmParser" "LLVMInstCombine" "LLVMFrontendOpenMP" "LLVMAggressiveInstCombine" "LLVMTransformUtils" "LLVMJITLink" "LLVMMCJIT" "LLVMExecutionEngine" "LLVMTarget" "LLVMRuntimeDyld" "LLVMBitWriter" "LLVMAnalysis" "LLVMProfileData" "LLVMObject" "LLVMTextAPI" "LLVMMCParser" "LLVMMC" "LLVMDebugInfoCodeView" "LLVMBitReader" "LLVMCore" "LLVMRemarks" "LLVMBitstreamReader" "LLVMBinaryFormat" "LLVMSupport" "LLVMDemangle")
   if(${llvm_api_version} LESS 1600)
     set(MONO_llvm_core_libs ${MONO_llvm_core_libs} "LLVMObjCARCOpts" "LLVMMCDisassembler" "LLVMOrcTargetProcess" "LLVMOrcShared" "LLVMDebugInfoDWARF")
-  else()
+  elseif(${llvm_api_version} LESS 1900)
     set(MONO_llvm_core_libs ${MONO_llvm_core_libs} "LLVMIRPrinter" "LLVMCodeGen" "LLVMObjCARCOpts" "LLVMMCDisassembler" "LLVMWindowsDriver" "LLVMOption" "LLVMOrcTargetProcess" "LLVMOrcShared"  "LLVMSymbolize" "LLVMDebugInfoPDB" "LLVMDebugInfoMSF" "LLVMDebugInfoDWARF" "LLVMTargetParser")
+  else()
+    set(MONO_llvm_core_libs ${MONO_llvm_core_libs} "LLVMOrcJIT" "LLVMPasses" "LLVMIRPrinter" "LLVMHipStdPar" "LLVMCoroutines" "LLVMipo" "LLVMInstrumentation" "LLVMVectorize" "LLVMLinker" "LLVMFrontendOpenMP" "LLVMFrontendOffloading" "LLVMCodeGen" "LLVMScalarOpts" "LLVMInstCombine" "LLVMObjCARCOpts" "LLVMCodeGenTypes" "LLVMCFGuard" "LLVMAggressiveInstCombine" "LLVMTransformUtils" "LLVMWindowsDriver" "LLVMJITLink" "LLVMOption" "LLVMMCJIT" "LLVMExecutionEngine" "LLVMTarget" "LLVMRuntimeDyld" "LLVMOrcTargetProcess" "LLVMOrcShared" "LLVMBitWriter" "LLVMAnalysis" "LLVMProfileData" "LLVMSymbolize" "LLVMDebugInfoBTF" "LLVMDebugInfoPDB" "LLVMDebugInfoMSF" "LLVMDebugInfoDWARF" "LLVMObject" "LLVMTextAPI" "LLVMMCParser" "LLVMIRReader" "LLVMAsmParser" "LLVMMC" "LLVMDebugInfoCodeView" "LLVMBitReader" "LLVMCore" "LLVMRemarks" "LLVMBitstreamReader" "LLVMBinaryFormat" "LLVMTargetParser" "LLVMSupport" "LLVMDemangle")
   endif()
 
   # llvm-config --libs x86codegen
@@ -633,8 +635,11 @@ if(LLVM_PREFIX)
 
   # llvm-config --libs aarch64codegen
   set(MONO_llvm_extra_libs_aarch64codegen "LLVMAArch64CodeGen" "LLVMCFGuard" "LLVMGlobalISel" "LLVMSelectionDAG" "LLVMAsmPrinter" "LLVMDebugInfoDWARF" "LLVMCodeGen" "LLVMTarget" "LLVMScalarOpts" "LLVMInstCombine" "LLVMAggressiveInstCombine" "LLVMTransformUtils" "LLVMBitWriter" "LLVMAnalysis" "LLVMProfileData" "LLVMObject" "LLVMTextAPI" "LLVMMCParser" "LLVMBitReader" "LLVMCore" "LLVMRemarks" "LLVMBitstreamReader" "LLVMAArch64Desc" "LLVMMC" "LLVMDebugInfoCodeView" "LLVMDebugInfoMSF" "LLVMBinaryFormat" "LLVMAArch64Utils" "LLVMAArch64Info" "LLVMSupport" "LLVMDemangle")
-  if(${llvm_api_version} GREATER_EQUAL 1600)
+  if(${llvm_api_version} GREATER_EQUAL 1900)
+    set(MONO_llvm_extra_libs_aarch64codegen ${MONO_llvm_extra_libs_aarch64codegen} "LLVMAArch64CodeGen" "LLVMGlobalISel" "LLVMSelectionDAG" "LLVMCFGuard" "LLVMAsmPrinter" "LLVMCodeGen" "LLVMTarget" "LLVMScalarOpts" "LLVMInstCombine" "LLVMAggressiveInstCombine" "LLVMObjCARCOpts" "LLVMTransformUtils" "LLVMBitWriter" "LLVMAnalysis" "LLVMProfileData" "LLVMSymbolize" "LLVMDebugInfoBTF" "LLVMDebugInfoPDB" "LLVMDebugInfoMSF" "LLVMDebugInfoDWARF" "LLVMObject" "LLVMTextAPI" "LLVMMCParser" "LLVMIRReader" "LLVMAsmParser" "LLVMBitReader" "LLVMAArch64Desc" "LLVMCodeGenTypes" "LLVMAArch64Utils" "LLVMCore" "LLVMRemarks" "LLVMBitstreamReader" "LLVMAArch64Info" "LLVMMC" "LLVMDebugInfoCodeView" "LLVMBinaryFormat" "LLVMTargetParser" "LLVMSupport" "LLVMDemangle")
+  elseif(${llvm_api_version} GREATER_EQUAL 1600)
     set(MONO_llvm_extra_libs_aarch64codegen ${MONO_llvm_extra_libs_aarch64codegen} "LLVMObjCARCOpts" "LLVMSymbolize" "LLVMDebugInfoPDB"  "LLVMIRReader" "LLVMAsmParser" "LLVMTargetParser")
+    elseif(${llvm_api_version} LESS)
   endif()
 
   if(HOST_LINUX AND NOT HOST_WASM AND NOT HOST_WASI AND ${llvm_api_version} GREATER_EQUAL 1600)

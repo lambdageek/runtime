@@ -38,6 +38,7 @@
 #include "llvm-c/Transforms/Scalar.h"
 #include "llvm-c/Transforms/IPO.h"
 #else
+#include "llvm-c/Transforms/PassBuilder.h"
 #ifdef _MSC_VER
 #pragma message("llvm 19 doesn't have the old pass manager")
 #else
@@ -13577,11 +13578,19 @@ after_codegen:
 #endif
 	} else {
 		//LLVMVerifyFunction (method, 0);
+#if LLVM_API_VERSION < 1900
 		if (ctx->module->func_pass_manager) {
 			LLVMInitializeFunctionPassManager (ctx->module->func_pass_manager);
 			LLVMRunFunctionPassManager(ctx->module->func_pass_manager, ctx->lmethod);
 			LLVMFinalizeFunctionPassManager (ctx->module->func_pass_manager);
 		}
+#else
+		// FIXME: this runs the passses on the whole module.  Wasteful
+		const char *passes = "simplifycfg, instcombine";
+		LLVMPassBuilderOptionsRef options = LLVMCreatePassBuilderOptions ();
+		LLVMRunPasses (ctx->module->lmodule, passes, NULL, options); // FIXME: LLVMTargetMachineRef
+		LLVMDisposePassBuilderOptions (options);
+#endif
 		llvm_jit_finalize_method (ctx);
 	}
 
