@@ -145,7 +145,12 @@ internal sealed partial class SOSDacImpl : ISOSDacInterface, ISOSDacInterface9
             return ex.HResult;
         }
     }
-    public unsafe int GetMethodTableName(ulong mt, uint count, char* mtName, uint* pNeeded) => HResults.E_NOTIMPL;
+    public unsafe int GetMethodTableName(ulong mt, uint count, char* mtName, uint* pNeeded)
+    {
+        if (mt == 0)
+            return HResults.E_INVALIDARG;
+        return HResults.E_NOTIMPL;
+    }
     public unsafe int GetMethodTableSlot(ulong mt, uint slot, ulong* value) => HResults.E_NOTIMPL;
     public unsafe int GetMethodTableTransparencyData(ulong mt, void* data) => HResults.E_NOTIMPL;
     public unsafe int GetModule(ulong addr, void** mod) => HResults.E_NOTIMPL;

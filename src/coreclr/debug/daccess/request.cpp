@@ -1878,8 +1878,43 @@ ClrDataAccess::GetMethodTableName(CLRDATA_ADDRESS mt, unsigned int count, _Inout
 {
     if (mt == 0)
         return E_INVALIDARG;
-
     SOSDacEnter();
+    if (m_cdacSos != NULL)
+    {
+        // Try the cDAC first - it will return E_NOTIMPL if it doesn't support this method yet. Fall back to the DAC.
+        hr = m_cdacSos->GetMethodTableName(mt, count, mtName, pNeeded);
+        if (FAILED(hr))
+        {
+            hr = GetMethodTableNameImpl(mt, count, mtName, pNeeded);
+        }
+#ifdef _DEBUG
+        else
+        {
+            // Assert that the data is the same as what we get from the DAC.
+            WCHAR *mtNameLocal = count ? new WCHAR[count] : nullptr; // FIXME: different alloc?
+            unsigned int neededLocal = 0;
+            HRESULT hrLocal = GetMethodTableNameImpl(mt, count, mtName ? mtNameLocal : nullptr, pNeeded ? &neededLocal : nullptr);
+            _ASSERTE(hr == hrLocal);
+            _ASSERTE(pNeeded ? *pNeeded == neededLocal : true);
+            _ASSERTE(mtName ? wcsncmp(mtName, mtNameLocal, count) == 0 : true);
+            if (mtNameLocal)
+                delete mtNameLocal;
+        }
+#endif
+    }
+    else
+    {
+        hr = GetMethodTableNameImpl (mt, count, mtName, pNeeded);
+    }
+    SOSDacLeave();
+    return hr;
+}
+
+HRESULT
+ClrDataAccess::GetMethodTableNameImpl(CLRDATA_ADDRESS mt, unsigned int count, _Inout_updates_z_(count) WCHAR *mtName, unsigned int *pNeeded)
+{
+    if (mt == 0)
+        return E_INVALIDARG;
 
     PTR_MethodTable pMT = PTR_MethodTable(TO_TADDR(mt));
     BOOL free = FALSE;
@@ -1894,7 +1929,7 @@ ClrDataAccess::GetMethodTableName(CLRDATA_ADDRESS mt, unsigned int count, _Inout
     }
     else if (!DacValidateMethodTable(pMT, free))
     {
-        hr = E_INVALIDARG;
+        return E_INVALIDARG;
     }
     else
     {
@@ -1933,7 +1968,7 @@ ClrDataAccess::GetMethodTableName(CLRDATA_ADDRESS mt, unsigned int count, _Inout
 
             if (s.IsEmpty())
             {
-                hr = E_OUTOFMEMORY;
+                return E_OUTOFMEMORY;
             }
             else
             {
@@ -1950,9 +1985,7 @@ ClrDataAccess::GetMethodTableName(CLRDATA_ADDRESS mt, unsigned int count, _Inout
             }
         }
     }
-
-    SOSDacLeave();
-    return hr;
+    return S_OK;
 }
 
 HRESULT
