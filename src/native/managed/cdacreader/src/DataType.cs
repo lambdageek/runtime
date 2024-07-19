@@ -20,6 +20,7 @@ public enum DataType
     pointer,
 
     GCHandle,
+    CodePointer,
     Thread,
     ThreadStore,
     GCAllocContext,
@@ -42,4 +43,5 @@ public enum DataType
     MethodDesc,
     MethodDescChunk,
     Array,
+    MethodDescCodeData,
 }
