@@ -43,5 +43,6 @@ public enum DataType
     MethodDesc,
     MethodDescChunk,
     Array,
+    PrecodeMachineDescriptor,
     MethodDescCodeData,
 }

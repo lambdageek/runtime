@@ -32,5 +32,7 @@ internal static class Constants
         internal const string ObjectHeaderSize = nameof(ObjectHeaderSize);
 
         internal const string ArrayBoundsZero = nameof(ArrayBoundsZero);
+
+        internal const string PrecodeMachineDescriptor = nameof(PrecodeMachineDescriptor);
     }
 }
