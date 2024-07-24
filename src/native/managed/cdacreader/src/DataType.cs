@@ -45,4 +45,5 @@ public enum DataType
     Array,
     PrecodeMachineDescriptor,
     MethodDescCodeData,
+    StubPrecodeData,
 }
