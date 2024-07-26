@@ -1917,6 +1917,7 @@ template<> struct cdac_data<MethodDesc>
     static constexpr size_t ChunkIndex = offsetof(MethodDesc, m_chunkIndex);
     static constexpr size_t Slot = offsetof(MethodDesc, m_wSlotNumber);
     static constexpr size_t Flags = offsetof(MethodDesc, m_wFlags);
+    static constexpr size_t Flags3AndTokenRemainder = offsetof(MethodDesc, m_wFlags3AndTokenRemainder);
     static constexpr size_t EntryPointFlags = offsetof(MethodDesc, m_bFlags4);
     static constexpr size_t CodeData = offsetof(MethodDesc, m_codeData);
 };
