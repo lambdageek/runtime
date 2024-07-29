@@ -46,4 +46,5 @@ public enum DataType
     PrecodeMachineDescriptor,
     MethodDescCodeData,
     StubPrecodeData,
+    FixupPrecodeData,
 }
