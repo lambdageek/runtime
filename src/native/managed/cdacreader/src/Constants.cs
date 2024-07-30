@@ -34,5 +34,7 @@ internal static class Constants
         internal const string ArrayBoundsZero = nameof(ArrayBoundsZero);
 
         internal const string PrecodeMachineDescriptor = nameof(PrecodeMachineDescriptor);
+
+        internal const string ExecutionManagerCodeRangeMapAddress = nameof(ExecutionManagerCodeRangeMapAddress);
     }
 }
