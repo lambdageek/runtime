@@ -47,4 +47,7 @@ public enum DataType
     MethodDescCodeData,
     StubPrecodeData,
     FixupPrecodeData,
+    RangeSectionMap,
+    RangeSectionFragment,
+    RangeSection,
 }
