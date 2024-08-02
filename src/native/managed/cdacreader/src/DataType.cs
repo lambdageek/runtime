@@ -52,4 +52,5 @@ public enum DataType
     RangeSection,
     IJitManager,
     RealCodeHeader,
+    HeapList,
 }
