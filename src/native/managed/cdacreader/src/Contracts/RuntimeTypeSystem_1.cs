@@ -113,6 +113,12 @@ internal partial struct RuntimeTypeSystem_1 : IRuntimeTypeSystem
         TemporaryEntryPointAssigned = 0x04,
     }
 
+    [Flags]
+    internal enum StoredSigDynamicMethodDescFlags : uint
+    {
+        IsLCGMethod = 0x00004000,
+    }
+
     internal struct MethodDesc
     {
         private readonly Data.MethodDesc _desc;
@@ -127,6 +133,14 @@ internal partial struct RuntimeTypeSystem_1 : IRuntimeTypeSystem
 
         public TargetPointer MethodTable => _chunk.MethodTable;
         public ushort Slot => _desc.Slot;
+
+        internal MethodClassification Classification => (MethodClassification)(_desc.Flags & (ushort)MethodDescFlags.ClassificationMask);
+
+        public bool IsDynamicMethod => Classification == MethodClassification.Dynamic;
+
+#pragma warning disable CA1822 // Mark members as static
+        internal bool HasFlags(StoredSigMethodDesc ssigDesc, StoredSigDynamicMethodDescFlags flags) => (ssigDesc.ExtendedFlags & (uint)flags) != 0;
+#pragma warning restore CA1822 // Mark members as static
     }
 
     internal RuntimeTypeSystem_1(Target target, TargetPointer freeObjectMethodTablePointer, ulong methodDescAlignment)
@@ -557,6 +571,16 @@ internal partial struct RuntimeTypeSystem_1 : IRuntimeTypeSystem
             throw new NotImplementedException(); // TODO(cdac):
         }
 
+    }
+
+    bool IRuntimeTypeSystem.IsLCGMethod(MethodDescHandle methodDesc)
+    {
+        MethodDesc md = _methodDescs[methodDesc.Address];
+        // (mcDynamic == GetClassification()) && dac_cast<PTR_DynamicMethodDesc>(this)->IsLCGMethod())
+        if (!md.IsDynamicMethod)
+            return false;
+        StoredSigMethodDesc storedSigMethodDesc = _target.ProcessedData.GetOrAdd<StoredSigMethodDesc>(methodDesc.Address);
+        return md.HasFlags(storedSigMethodDesc, StoredSigDynamicMethodDescFlags.IsLCGMethod);
     }
 
 }

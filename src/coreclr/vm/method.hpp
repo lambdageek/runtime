@@ -2427,6 +2427,13 @@ public:
 #ifdef DACCESS_COMPILE
     void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
 #endif
+
+    template<typename T> friend struct ::cdac_data;
+};
+
+template<> struct cdac_data<StoredSigMethodDesc>
+{
+    static constexpr size_t ExtendedFlags = offsetof(StoredSigMethodDesc, m_dwExtendedFlags);
 };
 
 //-----------------------------------------------------------------------

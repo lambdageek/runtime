@@ -42,6 +42,7 @@ public enum DataType
     String,
     MethodDesc,
     MethodDescChunk,
+    StoredSigMethodDesc,
     Array,
     PrecodeMachineDescriptor,
     MethodDescCodeData,

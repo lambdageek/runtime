@@ -287,6 +287,11 @@ CDAC_TYPE_FIELD(MethodDescChunk, /*uint8*/, Size, cdac_data<MethodDescChunk>::Si
 CDAC_TYPE_FIELD(MethodDescChunk, /*uint8*/, Count, cdac_data<MethodDescChunk>::Count)
 CDAC_TYPE_END(MethodDescChunk)
 
+CDAC_TYPE_BEGIN(StoredSigMethodDesc)
+CDAC_TYPE_INDETERMINATE(StoredSigMethodDesc)
+CDAC_TYPE_FIELD(StoredSigMethodDesc, /*uint32*/, ExtendedFlags, cdac_data<StoredSigMethodDesc>::ExtendedFlags)
+CDAC_TYPE_END(StoredSigMethodDesc)
+
 CDAC_TYPE_BEGIN(CodePointer)
 CDAC_TYPE_SIZE(sizeof(PCODE))
 CDAC_TYPE_END(CodePointer)

@@ -128,6 +128,7 @@ internal interface IRuntimeTypeSystem : IContract
     #region MethodDesc inspection APIs
     public virtual MethodDescHandle GetMethodDescHandle(TargetPointer targetPointer) => throw new NotImplementedException();
     public virtual TargetPointer GetMethodTable(MethodDescHandle methodDesc) => throw new NotImplementedException();
+    public virtual bool IsLCGMethod(MethodDescHandle methodDesc) => throw new NotImplementedException();
     #endregion MethodDesc inspection APIs
 }
 
