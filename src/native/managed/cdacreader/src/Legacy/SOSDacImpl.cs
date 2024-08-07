@@ -3,6 +3,7 @@
 
 using Microsoft.Diagnostics.DataContractReader.Contracts;
 using System;
+using System.Buffers;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 
@@ -100,6 +101,26 @@ internal sealed partial class SOSDacImpl : ISOSDacInterface, ISOSDacInterface2, 
         {
             Contracts.IRuntimeTypeSystem rtsContract = _target.Contracts.RuntimeTypeSystem;
             Contracts.MethodDescHandle methodDescHandle = rtsContract.GetMethodDescHandle(methodDesc);
+
+            if (rgRevertedRejitData != null)
+            {
+                NativeMemory.Clear(rgRevertedRejitData, (nuint)(sizeof(DacpReJitData) * cRevertedRejitVersions));
+            }
+            if (pcNeededRevertedRejitData != null)
+            {
+                *pcNeededRevertedRejitData = 0;
+            }
+
+            NativeCodeVersionHandle requestedCodeVersion, activeCodeVersion; ;
+            if (ip != null)
+            {
+                throw new NotImplementedException(); // TODO[cdac]: ExecutionManager::GetNativeCodeVersion
+            }
+            else
+            {
+                activeCodeVersion = rtsContract.GetActiveNativeCodeVersion(methodDescHandle); // TODO[cdac]: pMD->GetCodeVersionManager()->GetActiveILCodeVersion(pMD).GetActiveNativeCodeVersion(pMD)
+                requestedCodeVersion = activeCodeVersion;
+            }
 
             data->requestedIP = ip;
             data->bIsDynamic = rtsContract.IsLCGMethod(methodDescHandle) ? 1 : 0;
