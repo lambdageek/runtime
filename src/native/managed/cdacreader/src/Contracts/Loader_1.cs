@@ -97,4 +97,12 @@ internal readonly struct Loader_1 : ILoader
             module.TypeDefToMethodTableMap,
             module.TypeRefToMethodTableMap);
     }
+
+    bool ILoader.IsCollectibleLoaderAllocator(ModuleHandle handle)
+    {
+        Data.Module module = _target.ProcessedData.GetOrAdd<Data.Module>(handle.Address);
+        TargetPointer loaderAllocator = module.LoaderAllocator;
+        Data.LoaderAllocator la = _target.ProcessedData.GetOrAdd<Data.LoaderAllocator>(loaderAllocator);
+        return la.IsCollectible != 0;
+    }
 }

@@ -91,6 +91,8 @@ internal partial struct RuntimeTypeSystem_1 : IRuntimeTypeSystem
         // HasPrecode implies that HasStableEntryPoint is set.
         HasStableEntryPoint = 0x1000, // The method entrypoint is stable (either precode or actual code)
         HasPrecode = 0x2000, // Precode has been allocated for this method
+        IsUnboxingStub = 0x4000,
+        IsEligibleForTieredCompilation = 0x8000,
     }
 
     internal enum MethodClassification
@@ -119,6 +121,16 @@ internal partial struct RuntimeTypeSystem_1 : IRuntimeTypeSystem
         IsLCGMethod = 0x00004000,
     }
 
+    [Flags]
+    internal enum InstantiatedMethodDescFlags : ushort
+    {
+        KindMask = 0x07,
+        GenericMethodDefinition = 0x01,
+        UnsharedMethodInstantiation = 0x02,
+        SharedMethodInstantiation = 0x03,
+        WrapperStubWithInstantiations = 0x04,
+    }
+
     internal struct MethodDesc
     {
         private readonly Data.MethodDesc _desc;
@@ -137,10 +149,38 @@ internal partial struct RuntimeTypeSystem_1 : IRuntimeTypeSystem
         internal MethodClassification Classification => (MethodClassification)(_desc.Flags & (ushort)MethodDescFlags.ClassificationMask);
 
         public bool IsDynamicMethod => Classification == MethodClassification.Dynamic;
+        public bool IsIL => Classification == MethodClassification.IL || Classification == MethodClassification.Instantiated;
 
 #pragma warning disable CA1822 // Mark members as static
         internal bool HasFlags(StoredSigMethodDesc ssigDesc, StoredSigDynamicMethodDescFlags flags) => (ssigDesc.ExtendedFlags & (uint)flags) != 0;
 #pragma warning restore CA1822 // Mark members as static
+
+        internal bool HasFlags(MethodDescFlags3 flags) => (_desc.Flags3AndTokenRemainder & (ushort)flags) != 0;
+
+        public bool IsEligibleForTieredCompilation => HasFlags(MethodDescFlags3.IsEligibleForTieredCompilation);
+
+
+        public bool IsUnboxingStub => HasFlags(MethodDescFlags3.IsUnboxingStub);
+    }
+
+    internal struct InstantiatedMethodDesc
+    {
+        private readonly TargetPointer _address;
+        private readonly Data.InstantiatedMethodDesc _desc;
+        internal InstantiatedMethodDesc(TargetPointer address, Data.InstantiatedMethodDesc instantiatedMethodDesc)
+        {
+            _address = address;
+            _desc = instantiatedMethodDesc;
+        }
+
+        private bool HasFlags(InstantiatedMethodDescFlags mask, InstantiatedMethodDescFlags flags) => (_desc.Flags2 & (ushort)mask) == (ushort)flags;
+        internal bool IsWrapperStubWithInstantiations => HasFlags(InstantiatedMethodDescFlags.KindMask, InstantiatedMethodDescFlags.WrapperStubWithInstantiations);
+        internal bool IsGenericMethodDefinition => HasFlags(InstantiatedMethodDescFlags.KindMask, InstantiatedMethodDescFlags.GenericMethodDefinition);
+
+        internal bool HasPerInstInfo => _desc.PerInstInfo != TargetPointer.Null;
+
+        internal bool HasMethodInstantiation => IsGenericMethodDefinition || HasPerInstInfo;
+
     }
 
     internal RuntimeTypeSystem_1(Target target, TargetPointer freeObjectMethodTablePointer, ulong methodDescAlignment)
@@ -581,6 +621,87 @@ internal partial struct RuntimeTypeSystem_1 : IRuntimeTypeSystem
             return false;
         StoredSigMethodDesc storedSigMethodDesc = _target.ProcessedData.GetOrAdd<StoredSigMethodDesc>(methodDesc.Address);
         return md.HasFlags(storedSigMethodDesc, StoredSigDynamicMethodDescFlags.IsLCGMethod);
+    }
+
+    private bool IsWrapperStub(MethodDesc md)
+    {
+        return md.IsUnboxingStub || IsInstantiatingStub(md);
+    }
+
+    private bool IsInstantiatingStub(MethodDesc md)
+    {
+        return md.Classification == MethodClassification.Instantiated && !md.IsUnboxingStub && AsInstantiatedMethodDesc(md).IsWrapperStubWithInstantiations;
+    }
+
+    private bool HasMethodInstantiation(MethodDesc md)
+    {
+        return md.Classification == MethodClassification.Instantiated && AsInstantiatedMethodDesc(md).HasMethodInstantiation;
+    }
+
+    bool IRuntimeTypeSystem.IsDynamicMethod(MethodDescHandle methodDesc)
+    {
+        MethodDesc md = _methodDescs[methodDesc.Address];
+        return md.IsDynamicMethod;
+    }
+
+    private TargetPointer GetLoaderModule(TypeHandle typeHandle)
+    {
+        throw new NotImplementedException();
+    }
+
+    private bool IsGenericMethodDefinition(MethodDesc md)
+    {
+        return md.Classification == MethodClassification.Instantiated && AsInstantiatedMethodDesc(md).IsGenericMethodDefinition;
+    }
+
+    private TargetPointer GetLoaderModule(MethodDesc md)
+    {
+
+        if (HasMethodInstantiation(md) && !IsGenericMethodDefinition(md))
+        {
+            // TODO[cdac]: don't reimplement ComputeLoaderModuleWorker,
+            // but try caching the LoaderModule (or just the LoaderAllocator?) on the
+            // MethodDescChunk (and maybe MethodTable?).
+            throw new NotImplementedException();
+        }
+        else
+        {
+            TargetPointer mtAddr = GetMethodTable(new MethodDescHandle(md.Address));
+            TypeHandle mt = GetTypeHandle(mtAddr);
+            return GetLoaderModule(mt);
+        }
+    }
+
+    bool IRuntimeTypeSystem.IsCollectibleMethod(MethodDescHandle methodDesc)
+    {
+        MethodDesc md = _methodDescs[methodDesc.Address];
+        TargetPointer loaderModuleAddr = GetLoaderModule(md);
+        ModuleHandle mod = _target.Contracts.Loader.GetModuleHandle(loaderModuleAddr);
+        return _target.Contracts.Loader.IsCollectibleLoaderAllocator(mod); // TODO[cdac]: return pMethodDesc->GetLoaderAllocator()->IsCollectible()
+    }
+
+    internal InstantiatedMethodDesc AsInstantiatedMethodDesc(MethodDesc md)
+    {
+        Debug.Assert(md.Classification == MethodClassification.Instantiated);
+        Data.InstantiatedMethodDesc imd = _target.ProcessedData.GetOrAdd<Data.InstantiatedMethodDesc>(md.Address);
+        return new InstantiatedMethodDesc(md.Address, imd);
+    }
+
+    bool IRuntimeTypeSystem.IsVersionable(MethodDescHandle methodDesc)
+    {
+        MethodDesc md = _methodDescs[methodDesc.Address];
+        if (md.IsEligibleForTieredCompilation)
+            return true;
+        // MethodDesc::IsEligibleForReJIT
+        if (_target.Contracts.NativeCodePointers.IsReJITEnabled())
+        {
+            if (!md.IsIL)
+                return false;
+            if (IsWrapperStub(md))
+                return false;
+            return _target.Contracts.NativeCodePointers.CodeVersionManagerSupportsMethod(methodDesc.Address);
+        }
+        return false;
     }
 
 }

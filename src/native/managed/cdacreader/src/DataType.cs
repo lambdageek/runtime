@@ -28,6 +28,7 @@ public enum DataType
     ExceptionInfo,
     RuntimeThreadLocals,
     Module,
+    LoaderAllocator,
     MethodTable,
     EEClass,
     ArrayClass,
@@ -43,6 +44,7 @@ public enum DataType
     MethodDesc,
     MethodDescChunk,
     StoredSigMethodDesc,
+    InstantiatedMethodDesc,
     Array,
     PrecodeMachineDescriptor,
     MethodDescCodeData,
@@ -54,4 +56,5 @@ public enum DataType
     IJitManager,
     RealCodeHeader,
     HeapList,
+    ProfControlBlock,
 }

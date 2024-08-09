@@ -3429,6 +3429,14 @@ private:
                                                              Instantiation methodInst,
                                                              BOOL getSharedNotStub);
 
+    template<typename T> friend struct ::cdac_data;
+};
+
+template<>
+struct cdac_data<InstantiatedMethodDesc>
+{
+    static constexpr size_t Flags2 = offsetof(InstantiatedMethodDesc, m_wFlags2);
+    static constexpr size_t PerInstInfo = offsetof(InstantiatedMethodDesc, m_pPerInstInfo);
 };
 
 inline PTR_MethodTable MethodDesc::GetMethodTable() const

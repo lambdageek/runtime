@@ -207,6 +207,11 @@ CDAC_TYPE_FIELD(Module, /*pointer*/, TypeDefToMethodTableMap, cdac_data<Module>:
 CDAC_TYPE_FIELD(Module, /*pointer*/, TypeRefToMethodTableMap, cdac_data<Module>::TypeRefToMethodTableMap)
 CDAC_TYPE_END(Module)
 
+CDAC_TYPE_BEGIN(LoaderAllocator)
+CDAC_TYPE_INDETERMINATE(LoaderAllocator)
+CDAC_TYPE_FIELD(LoaderAllocator, /*uint8*/, IsCollectible, cdac_data<LoaderAllocator>::IsCollectible)
+CDAC_TYPE_END(LoaderAllocator)
+
 // RuntimeTypeSystem
 
 CDAC_TYPE_BEGIN(MethodTable)
@@ -292,6 +297,12 @@ CDAC_TYPE_INDETERMINATE(StoredSigMethodDesc)
 CDAC_TYPE_FIELD(StoredSigMethodDesc, /*uint32*/, ExtendedFlags, cdac_data<StoredSigMethodDesc>::ExtendedFlags)
 CDAC_TYPE_END(StoredSigMethodDesc)
 
+CDAC_TYPE_BEGIN(InstantiatedMethodDesc)
+CDAC_TYPE_INDETERMINATE(InstantiatedMethodDesc)
+CDAC_TYPE_FIELD(InstantiatedMethodDesc, /*uint16*/, Flags2, cdac_data<InstantiatedMethodDesc>::Flags2)
+CDAC_TYPE_FIELD(InstantiatedMethodDesc, /*pointer*/, PerInstInfo, cdac_data<InstantiatedMethodDesc>::PerInstInfo)
+CDAC_TYPE_END(InstantiatedMethodDesc)
+
 CDAC_TYPE_BEGIN(CodePointer)
 CDAC_TYPE_SIZE(sizeof(PCODE))
 CDAC_TYPE_END(CodePointer)
@@ -368,6 +379,10 @@ CDAC_TYPE_FIELD(HeapList, /*pointer*/, MapBase, offsetof(HeapList, mapBase))
 CDAC_TYPE_FIELD(HeapList, /*pointer*/, HeaderMap, offsetof(HeapList, pHdrMap))
 CDAC_TYPE_END(HeapList)
 
+CDAC_TYPE_BEGIN(ProfControlBlock)
+CDAC_TYPE_FIELD(ProfControlBlock, /*uint64*/, GlobalEventMask, offsetof(ProfControlBlock, globalEventMask))
+CDAC_TYPE_END(ProfControlBlock)
+
 CDAC_TYPES_END()
 
 CDAC_GLOBALS_BEGIN()
@@ -405,6 +420,7 @@ CDAC_GLOBAL_POINTER(MiniMetaDataBuffAddress, &::g_MiniMetaDataBuffAddress)
 CDAC_GLOBAL_POINTER(MiniMetaDataBuffMaxSize, &::g_MiniMetaDataBuffMaxSize)
 CDAC_GLOBAL_POINTER(PrecodeMachineDescriptor, &::g_PrecodeMachineDescriptor)
 CDAC_GLOBAL_POINTER(ExecutionManagerCodeRangeMapAddress, cdac_data<ExecutionManager>::CodeRangeMapAddress)
+CDAC_GLOBAL_POINTER(ProfilerControlBlock, &::g_profControlBlock)
 CDAC_GLOBALS_END()
 
 #undef CDAC_BASELINE

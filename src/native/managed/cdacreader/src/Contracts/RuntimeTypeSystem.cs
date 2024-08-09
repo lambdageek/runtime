@@ -129,6 +129,10 @@ internal interface IRuntimeTypeSystem : IContract
     public virtual MethodDescHandle GetMethodDescHandle(TargetPointer targetPointer) => throw new NotImplementedException();
     public virtual TargetPointer GetMethodTable(MethodDescHandle methodDesc) => throw new NotImplementedException();
     public virtual bool IsLCGMethod(MethodDescHandle methodDesc) => throw new NotImplementedException();
+    public virtual bool IsDynamicMethod(MethodDescHandle methodDesc) => throw new NotImplementedException();
+    public virtual bool IsCollectibleMethod(MethodDescHandle methodDesc) => throw new NotImplementedException();
+    public virtual bool InEnCEnabledModule(MethodDescHandle methodDesc) => throw new NotImplementedException();
+    public virtual bool IsVersionable(MethodDescHandle methodDesc) => throw new NotImplementedException();
     #endregion MethodDesc inspection APIs
 }
 
