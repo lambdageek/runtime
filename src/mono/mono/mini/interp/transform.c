@@ -2460,11 +2460,9 @@ interp_handle_intrinsics (TransformData *td, MonoMethod *target_method, MonoClas
 		else if (!strcmp (tm, "Exchange") && csignature->param_count == 2  && m_type_is_byref (csignature->params[0])) {
 			MonoType *t = mini_get_underlying_type (csignature->params[1]);
 			switch (t->type) {
-#if false // TODO
 			case MONO_TYPE_I1:
 				*op = MINT_MONO_EXCHANGE_I1;
 				break;
-#endif
 			case MONO_TYPE_U1:
 				*op = MINT_MONO_EXCHANGE_U1;
 				break;
