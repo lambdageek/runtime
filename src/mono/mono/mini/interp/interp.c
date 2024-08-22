@@ -7200,7 +7200,7 @@ MINT_IN_CASE(MINT_BRTRUE_I8_SP) ZEROP_SP(gint64, !=); MINT_IN_BREAK;
 			gint8 *dest = LOCAL_VAR (ip [2], gint8*);
 			gint8 exch = LOCAL_VAR (ip[3], gint8);
 			NULL_CHECK(dest);
-			LOCAL_VAR(ip[1], gint32) = (gint32)(gint8)mono_atomic_xchg_u8(dest, exch);
+			LOCAL_VAR(ip[1], gint32) = (gint32)(gint8)mono_atomic_xchg_u8((guint8*)dest, exch);
 			ip += 4;
 			MINT_IN_BREAK;
 		}
@@ -7216,7 +7216,7 @@ MINT_IN_CASE(MINT_BRTRUE_I8_SP) ZEROP_SP(gint64, !=); MINT_IN_BREAK;
 			gint16 *dest = LOCAL_VAR (ip [2], gint16*);
 			gint16 exch = LOCAL_VAR (ip[3], gint16);
 			NULL_CHECK(dest);
-			LOCAL_VAR(ip[1], gint32) = (gint32)(gint16)mono_atomic_xchg_u16(dest, exch);
+			LOCAL_VAR(ip[1], gint32) = (gint32)(gint16)mono_atomic_xchg_u16((guint16*)dest, exch);
 			ip += 4;
 			MINT_IN_BREAK;
 		}
