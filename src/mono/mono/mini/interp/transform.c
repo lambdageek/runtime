@@ -2466,6 +2466,12 @@ interp_handle_intrinsics (TransformData *td, MonoMethod *target_method, MonoClas
 			case MONO_TYPE_U1:
 				*op = MINT_MONO_EXCHANGE_U1;
 				break;
+			case MONO_TYPE_I2:
+				*op = MINT_MONO_EXCHANGE_I2;
+				break;
+			case MONO_TYPE_U2:
+				*op = MINT_MONO_EXCHANGE_U2;
+				break;
 			case MONO_TYPE_I8:
 				*op = MINT_MONO_EXCHANGE_I8;
 				break;
