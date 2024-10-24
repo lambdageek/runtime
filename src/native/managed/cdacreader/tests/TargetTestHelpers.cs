@@ -311,11 +311,12 @@ internal unsafe class TargetTestHelpers
         public readonly uint MaxAlign { get; init; }
     }
 
+    // Implements a simple layout algorithm that aligns fields to their size
+    // and aligns the structure to the largest field size.
     public LayoutResult LayoutFields((string Name, DataType Type)[] fields)
         => LayoutFields(FieldLayout.CIsh, fields);
 
-    // Implements a simple layout algorithm that aligns fields to their size
-    // and aligns the structure to the largest field size.
+    // Layout the fields of a structure according to the specified layout style.
     public LayoutResult  LayoutFields(FieldLayout style, (string Name, DataType Type)[] fields)
     {
         Dictionary<string,Target.FieldInfo> fieldInfos = new ();
@@ -338,6 +339,7 @@ internal unsafe class TargetTestHelpers
             };
             fieldInfos[name] = new Target.FieldInfo {
                 Offset = offset,
+                Type = type,
             };
             offset += size;
         }
