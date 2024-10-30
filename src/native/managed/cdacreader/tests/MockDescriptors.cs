@@ -24,6 +24,7 @@ internal class MockDescriptors
         (nameof(Data.MethodTable.NumInterfaces), DataType.uint16),
         (nameof(Data.MethodTable.NumVirtuals), DataType.uint16),
         (nameof(Data.MethodTable.PerInstInfo), DataType.pointer),
+        (nameof(Data.MethodTable.AuxiliaryData), DataType.pointer),
     };
 
     private static readonly (string Name, DataType Type)[] EEClassFields = new[]
