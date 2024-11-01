@@ -642,6 +642,20 @@ internal partial struct RuntimeTypeSystem_1 : IRuntimeTypeSystem
         return checked((ushort)(methodTable.NumVirtuals + numNonVirtualSlots));
     }
 
+    internal TargetPointer GetMethodDescChunkPointerThrowing(TargetPointer methodDescPointer, Data.MethodDesc umd)
+    {
+        ulong? methodDescChunkSize = _target.GetTypeInfo(DataType.MethodDescChunk).Size;
+        if (!methodDescChunkSize.HasValue)
+        {
+            throw new InvalidOperationException("Target has no definite MethodDescChunk size");
+        }
+        // The runtime allocates a contiguous block of memory for a MethodDescChunk followed by MethodDescAlignment * Size bytes of space
+        // that is filled with MethodDesc (or its subclasses) instances.  Each MethodDesc has a ChunkIndex that indicates its
+        // offset from the end of the MethodDescChunk.
+        ulong chunkAddress = (ulong)methodDescPointer - methodDescChunkSize.Value - umd.ChunkIndex * _methodDescAlignment;
+        return new TargetPointer(chunkAddress);
+    }
+
     public MethodDescHandle GetMethodDescHandle(TargetPointer methodDescPointer)
     {
         // if we already validated this address, return a handle
@@ -653,7 +667,7 @@ internal partial struct RuntimeTypeSystem_1 : IRuntimeTypeSystem
         if (_target.ProcessedData.TryGet(methodDescPointer, out Data.MethodDesc? methodDescData))
         {
             // we already cached the data, we must have validated the address, create the representation struct for our use
-            TargetPointer mdescChunkPtr = _methodValidation.GetMethodDescChunkPointerThrowing(methodDescPointer, methodDescData);
+            TargetPointer mdescChunkPtr = GetMethodDescChunkPointerThrowing(methodDescPointer, methodDescData);
             // FIXME[cdac]: this isn't threadsafe
             if (!_target.ProcessedData.TryGet(mdescChunkPtr, out Data.MethodDescChunk? methodDescChunkData))
             {
@@ -1094,6 +1108,11 @@ internal partial struct RuntimeTypeSystem_1 : IRuntimeTypeSystem
         public TargetPointer GetAddressOfMethodTableSlot(TargetPointer methodTablePointer, uint slot)
         {
             return _rts.GetAddressOfMethodTableSlot(methodTablePointer, slot);
+        }
+
+        public TargetPointer GetMethodDescChunkPointerThrowing(TargetPointer methodDescPointer, Data.MethodDesc umd)
+        {
+            return _rts.GetMethodDescChunkPointerThrowing(methodDescPointer, umd);
         }
     }
 

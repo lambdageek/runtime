@@ -17,6 +17,8 @@ internal class MethodValidation
     {
         TargetPointer GetAddressOfMethodTableSlot(TargetPointer methodTablePointer, uint slot);
         bool SlotIsVtableSlot(TargetPointer methodTablePointer, uint slot);
+
+        TargetPointer GetMethodDescChunkPointerThrowing(TargetPointer methodDescPointer, Data.MethodDesc umd);
     }
 
     private class NIEMethodTableQueries : IMethodTableQueries
@@ -26,24 +28,26 @@ internal class MethodValidation
         public bool SlotIsVtableSlot(TargetPointer methodTablePointer, uint slot) => throw new NotImplementedException();
 
         internal static NIEMethodTableQueries s_Instance = new NIEMethodTableQueries();
+
+        public TargetPointer GetMethodDescChunkPointerThrowing(TargetPointer methodDescPointer, Data.MethodDesc umd) => throw new NotImplementedException();
     }
 
-    private readonly Target _target;
+    protected readonly Target _target;
 
     private readonly ulong _methodDescAlignment;
 
-    private IMethodTableQueries _methodTableQueries;
+    protected IMethodTableQueries MethodTableQueries { get; private set; }
 
     internal MethodValidation(Target target, ulong methodDescAlignment)
     {
         _target = target;
         _methodDescAlignment = methodDescAlignment;
-        _methodTableQueries = NIEMethodTableQueries.s_Instance;
+        MethodTableQueries = NIEMethodTableQueries.s_Instance;
     }
 
     internal void SetMethodTableQueries(IMethodTableQueries methodTableQueries)
     {
-        _methodTableQueries = methodTableQueries;
+        MethodTableQueries = methodTableQueries;
     }
 
     internal struct NonValidatedMethodDesc
@@ -114,23 +118,9 @@ internal class MethodValidation
         internal bool HasPrecode => HasFlags(MethodDescFlags_1.MethodDescFlags3.HasPrecode);
     }
 
-    internal TargetPointer GetMethodDescChunkPointerThrowing(TargetPointer methodDescPointer, Data.MethodDesc umd)
-    {
-        ulong? methodDescChunkSize = _target.GetTypeInfo(DataType.MethodDescChunk).Size;
-        if (!methodDescChunkSize.HasValue)
-        {
-            throw new InvalidOperationException("Target has no definite MethodDescChunk size");
-        }
-        // The runtime allocates a contiguous block of memory for a MethodDescChunk followed by MethodDescAlignment * Size bytes of space
-        // that is filled with MethodDesc (or its subclasses) instances.  Each MethodDesc has a ChunkIndex that indicates its
-        // offset from the end of the MethodDescChunk.
-        ulong chunkAddress = (ulong)methodDescPointer - methodDescChunkSize.Value - umd.ChunkIndex * _methodDescAlignment;
-        return new TargetPointer(chunkAddress);
-    }
-
     private Data.MethodDescChunk GetMethodDescChunkThrowing(TargetPointer methodDescPointer, Data.MethodDesc md, out TargetPointer methodDescChunkPointer)
     {
-        methodDescChunkPointer = GetMethodDescChunkPointerThrowing(methodDescPointer, md);
+        methodDescChunkPointer = MethodTableQueries.GetMethodDescChunkPointerThrowing(methodDescPointer, md);
         return new Data.MethodDescChunk(_target, methodDescChunkPointer);
     }
 
@@ -223,7 +213,7 @@ internal class MethodValidation
 
         TargetPointer methodTablePointer = umd.MethodTable;
         Debug.Assert(methodTablePointer != TargetPointer.Null);
-        TargetPointer addrOfSlot = _methodTableQueries.GetAddressOfMethodTableSlot(methodTablePointer, umd.Slot);
+        TargetPointer addrOfSlot = MethodTableQueries.GetAddressOfMethodTableSlot(methodTablePointer, umd.Slot);
         return _target.ReadCodePointer(addrOfSlot);
     }
 
@@ -243,7 +233,7 @@ internal class MethodValidation
 
     private bool HasNativeCode(TargetPointer methodDescPointer, NonValidatedMethodDesc umd) => GetCodePointer(methodDescPointer, umd) != TargetCodePointer.Null;
 
-    internal bool ValidateMethodDescPointer(TargetPointer methodDescPointer, [NotNullWhen(true)] out TargetPointer methodDescChunkPointer)
+    internal virtual bool ValidateMethodDescPointer(TargetPointer methodDescPointer, [NotNullWhen(true)] out TargetPointer methodDescChunkPointer)
     {
         methodDescChunkPointer = TargetPointer.Null;
         try
@@ -257,7 +247,7 @@ internal class MethodValidation
                 return false;
             }
 
-            if (!umd.HasNonVtableSlot && !_methodTableQueries.SlotIsVtableSlot(methodTablePointer, umd.Slot))
+            if (!umd.HasNonVtableSlot && !MethodTableQueries.SlotIsVtableSlot(methodTablePointer, umd.Slot))
             {
                 return false;
             }
